@@ -875,9 +875,9 @@ function drawBarrier(g,T){
   // 1) 床の魔法陣：ゆっくり呼吸し、中心から外へ光の波が広がる
   if(rose){
     const w=W*BAR.roseW,h=H-ly,x=(W-w)/2;
-    g.globalAlpha=0.2+0.09*slow;g.drawImage(rose,x,ly,w,h);
+    g.globalAlpha=0.12+0.05*slow;g.drawImage(rose,x,ly,w,h);
     for(let k=0;k<2;k++){
-      const u=(T*0.3+k*0.5)%1,a=Math.sin(Math.PI*u)*0.55;if(a<0.01)continue;
+      const u=(T*0.3+k*0.5)%1,a=Math.sin(Math.PI*u)*0.22;if(a<0.01)continue;
       const ro=0.08+u*1.02,ri=Math.max(0,ro-0.16);
       g.save();g.beginPath();g.ellipse(W/2,ly,w/2*ro,h*ro,0,0,TAU);if(ri>0)g.ellipse(W/2,ly,w/2*ri,h*ri,0,0,TAU);g.clip('evenodd');
       g.globalAlpha=a;g.drawImage(rose,x,ly,w,h);g.restore();
@@ -886,24 +886,24 @@ function drawBarrier(g,T){
   // 2) 結界の地明かり：線の上下に広がる琥珀色のもや（中央ほど濃い）と、線から上へ立ちのぼる薄い光
   g.globalAlpha=1;
   g.save();g.translate(W/2,ly);g.scale(1,0.16);
-  let gr=g.createRadialGradient(0,0,0,0,0,W*0.62);gr.addColorStop(0,gold.replace('A',0.34+0.16*pulse));gr.addColorStop(0.55,gold.replace('A',0.12+0.06*pulse));gr.addColorStop(1,gold.replace('A',0));
+  let gr=g.createRadialGradient(0,0,0,0,0,W*0.62);gr.addColorStop(0,gold.replace('A',0.15+0.07*pulse));gr.addColorStop(0.55,gold.replace('A',0.05+0.03*pulse));gr.addColorStop(1,gold.replace('A',0));
   g.fillStyle=gr;g.fillRect(-W*0.62,-W*0.62,W*1.24,W*1.24);g.restore();
-  gr=g.createLinearGradient(0,ly-70,0,ly);gr.addColorStop(0,gold.replace('A',0));gr.addColorStop(1,gold.replace('A',0.09+0.05*pulse));g.fillStyle=gr;g.fillRect(0,ly-70,W,70);
+  gr=g.createLinearGradient(0,ly-70,0,ly);gr.addColorStop(0,gold.replace('A',0));gr.addColorStop(1,gold.replace('A',0.04+0.02*pulse));g.fillStyle=gr;g.fillRect(0,ly-70,W,70);
   // 3) 結界線：ぼかした写し2段（にじみ）→ 絵そのもの → 白金の芯
   if(line){
     const lh=W*line.naturalHeight/line.naturalWidth,lt=ly-lh*BAR.lineCy,bl=barBloom();
-    if(bl){g.globalAlpha=0.55+0.35*pulse+br*0.4;g.drawImage(bl[1],-W*0.02,lt-lh*0.15,W*1.04,lh*1.3);g.globalAlpha=0.5+0.3*pulse;g.drawImage(bl[0],0,lt,W,lh)}
-    g.globalAlpha=0.62+0.22*pulse;g.drawImage(line,0,lt,W,lh);
+    if(bl){g.globalAlpha=0.22+0.14*pulse+br*0.5;g.drawImage(bl[1],-W*0.02,lt-lh*0.15,W*1.04,lh*1.3);g.globalAlpha=0.22+0.12*pulse;g.drawImage(bl[0],0,lt,W,lh)}
+    g.globalAlpha=0.42+0.12*pulse;g.drawImage(line,0,lt,W,lh);
     if(br>0.02){g.globalCompositeOperation='source-over';g.globalAlpha=br*0.5;g.fillStyle='#d23a2e';g.fillRect(0,ly-lh*0.5,W,lh);g.globalCompositeOperation='lighter'}
   }
   g.globalAlpha=1;gr=g.createLinearGradient(0,0,W,0);
-  gr.addColorStop(0,gold.replace('A',0));gr.addColorStop(0.18,gold.replace('A',0.55));gr.addColorStop(0.5,'rgba(255,248,226,'+(0.75+0.25*pulse)+')');gr.addColorStop(0.82,gold.replace('A',0.55));gr.addColorStop(1,gold.replace('A',0));
+  gr.addColorStop(0,gold.replace('A',0));gr.addColorStop(0.18,gold.replace('A',0.28));gr.addColorStop(0.5,'rgba(255,248,226,'+(0.42+0.14*pulse)+')');gr.addColorStop(0.82,gold.replace('A',0.28));gr.addColorStop(1,gold.replace('A',0));
   g.fillStyle=gr;g.fillRect(0,ly-0.7,W,1.4);
   // 中央の紋の芯（ゆっくり明滅）
-  barDot(g,W/2,ly,18+6*pulse,gold,0.5+0.3*pulse);
+  barDot(g,W/2,ly,13+4*pulse,gold,0.2+0.1*pulse);
   // 線を流れる光：中央から左右の端へ、2組が時間差で走る
   for(let k=0;k<2;k++){
-    const u=(T*0.42+k*0.5)%1,a=Math.sin(Math.PI*u)*0.9,dx=(W/2)*u;
+    const u=(T*0.42+k*0.5)%1,a=Math.sin(Math.PI*u)*0.38,dx=(W/2)*u;
     barDot(g,W/2-dx,ly,9,gold,a);barDot(g,W/2+dx,ly,9,gold,a);
   }
   g.restore();
@@ -918,14 +918,14 @@ function drawBarrier(g,T){
   for(const [side,x,y,w,h] of pile){
     BAR.flames[side].forEach((f,i)=>{
       const fl=0.78+0.12*Math.sin(T*9.3+i*2.1)+0.08*Math.sin(T*21.7+i*0.7)+(Math.random()-0.5)*0.07,fx=x+f[0]*w,fy=y+f[1]*h;
-      barDot(g,fx,fy-1,26*f[2]*fl,'rgba(255,150,60,A)',0.16*fl);
-      barDot(g,fx,fy,7*f[2]*fl,'rgba(255,200,120,A)',0.5*fl);
+      barDot(g,fx,fy-1,24*f[2]*fl,'rgba(255,150,60,A)',0.11*fl);
+      barDot(g,fx,fy,6*f[2]*fl,'rgba(255,200,120,A)',0.36*fl);
     });
   }
   g.restore();
   // 6) 火の粉：防衛線と炎から、ゆっくり立ちのぼる
   if(run){
-    if(BAR.emb.length<44&&Math.random()<dt*14){
+    if(BAR.emb.length<26&&Math.random()<dt*8){
       const fromFlame=pile.length&&Math.random()<0.45;let x,y;
       if(fromFlame){const p=pile[Math.floor(Math.random()*pile.length)],f=BAR.flames[p[0]][Math.floor(Math.random()*BAR.flames[p[0]].length)];x=p[1]+f[0]*p[3];y=p[2]+f[1]*p[4]-4}
       else{x=W*(0.08+Math.random()*0.84);y=ly-2}
@@ -935,7 +935,7 @@ function drawBarrier(g,T){
     BAR.emb=BAR.emb.filter(e=>e.t<e.life);
   }
   g.save();g.globalCompositeOperation='lighter';
-  for(const e of BAR.emb){const a=Math.sin(Math.PI*e.t/e.life)*0.85;g.globalAlpha=a;g.fillStyle='#ffc070';g.beginPath();g.arc(e.x,e.y,e.r,0,TAU);g.fill();g.globalAlpha=a*0.3;g.beginPath();g.arc(e.x,e.y,e.r*3,0,TAU);g.fill()}
+  for(const e of BAR.emb){const a=Math.sin(Math.PI*e.t/e.life)*0.55;g.globalAlpha=a;g.fillStyle='#ffc070';g.beginPath();g.arc(e.x,e.y,e.r,0,TAU);g.fill();g.globalAlpha=a*0.3;g.beginPath();g.arc(e.x,e.y,e.r*3,0,TAU);g.fill()}
   g.restore();g.globalAlpha=1;
 }
 const VT={},VC={};
@@ -2602,7 +2602,8 @@ function syncMap(){
   setTxt($('#mGold'),R.gold);setTxt($('#mGear'),R.loot.length);
   const sig='m'+R.at+'|'+R.sel+'|'+R.light+'|'+(busy?1:0);
   if(sig!==handSig){
-    handSig=sig;elHand.classList.add('dest');elHand.style.setProperty('--n',Math.max(1,cur.next.length));
+    handSig=sig;elHand.classList.add('dest');elHand.classList.remove('sk'); // 戦闘の札の見た目（sk）を外す。残ると行き先の札が縦長の札の比率になり、盤面が縮む
+    elHand.style.setProperty('--n',Math.max(1,cur.next.length));
     const near=reach2();
     elHand.innerHTML=cur.next.map(id=>{
       const art=!!UI.medals,mk=(q,cls)=>'<i class="'+cls+(art&&q.ix>=0?' mart'+(q.ix===MEDAL_UNK?' unk':''):'')+'" style="--c:'+q.col+(art&&q.ix>=0?';'+medalPos(q.ix):'')+'">'+q.g+'</i>';
@@ -2629,7 +2630,7 @@ function syncDOM(){
   setTxt($('#hGold'),B.gold);setTxt($('#hGear'),B.loot.length);
   const sig=B.slots.map(s=>s.card?s.card.id:'-').join(',')+'|'+B.sel;
   if(sig!==handSig){
-    handSig=sig;elHand.classList.toggle('sk',SKF);
+    handSig=sig;elHand.classList.toggle('sk',SKF);elHand.classList.remove('dest');
     elHand.innerHTML=B.slots.map((s,i)=>{
       const kd=c=>c.kind!=='target'?'即時':c.shape==='row'?'横一列':'範囲';
       if(SKF){ // 羊皮紙の札
