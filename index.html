@@ -594,9 +594,9 @@ const CFG={W:360,dur:180,baseLife:10,handSize:4,rewindCost:35,fix:true,showAncho
 
 const CHARS={
   fox:   {id:'fox',   name:'ユズナミキ',      short:'ユズナミキ',role:'狐耳・速射単体',     hp:95, range:235,cd:0.42,dmg:8, atk:'single',shotSpd:640,color:'#e0913a'},
-  sword: {id:'sword', name:'ラナ',            short:'ラナ',    role:'女騎士・近接円形',     hp:180,range:135,cd:1.15,dmg:34,atk:'circle',aoe:62,    color:'#b9c2cc'},
+  sword: {id:'sword', name:'ラナ',            short:'ラナ',    role:'女騎士・近接円形',     hp:180,range:135,cd:1.15,dmg:34,atk:'circle',aoe:62,    color:'#b9c2cc',far:{range:240,k:0.6,cd:1.3,spd:520,tex:'slash_b',col:'#ffd99a'}},
   sister:{id:'sister',name:'マリアンヌ',      short:'マリアンヌ',role:'シスター・単体と治癒',hp:110,range:205,cd:1.25,dmg:14,atk:'single',shotSpd:430,heal:4,color:'#e9dca8'},
-  blue:  {id:'blue',  name:'アベニウス',      short:'アベニウス',role:'蒼剣士・中距離扇状',   hp:130,range:170,cd:0.95,dmg:18,atk:'fan',   fan:0.9,   color:'#4fc3f7'},
+  blue:  {id:'blue',  name:'アベニウス',      short:'アベニウス',role:'蒼剣士・中距離扇状',   hp:130,range:170,cd:0.95,dmg:18,atk:'fan',   fan:0.9,   color:'#4fc3f7',far:{range:240,k:0.6,cd:1.3,spd:520,tex:'slash_a',col:'#4fc3f7'}},
   mage:  {id:'mage',  name:'シェリ',          short:'シェリ',  role:'魔術師・長射程貫通',hp:80, range:330,cd:1.6, dmg:24,atk:'line',  lineW:30,  color:'#a57be0'}
 };
 const CHAR_ORDER=['fox','sword','sister','mage','blue'];
@@ -1474,6 +1474,24 @@ function pickTarget(a){
   }
   return best;
 }
+/* 飛ぶ斬撃（近接のラナとアベニウスだけ。d.far）：いつもの射程に敵がいないときだけ、防衛線の上で止まって撃っている遠距離の敵を狙う。
+   射程 far.range（ソウル強化の射程も乗る）、威力は通常の far.k 倍、間隔は far.cd 倍。単体で、多重撃のもう一振りは付かない */
+function pickFar(a){
+  const f=a.d.far;if(!f)return null;
+  let best=null,by=-1e9;const rg=f.range*a.rg,r2=rg*rg;
+  for(const e of B.enemies){
+    if(e.dead||e.y<0||e.d.kind!=='ranged'||e.st!=='cast')continue;
+    const dx=e.x-a.x,dy=(e.y-18)-B.lineY;
+    if(dx*dx+dy*dy>r2)continue;
+    if(e.y>by){by=e.y;best=e}
+  }
+  return best;
+}
+function farShot(a,tg){
+  const f=a.d.far;
+  B.shots.push({from:1,x:a.x,y:B.lineY-34,tg,tx:tg.x,ty:tg.y-18,spd:f.spd,a,k:f.k,chain:0,seen:[],col:f.col,sw:f.tex});
+  fxSpark(a.x,B.lineY-34,f.col,4);
+}
 // 多重撃用：射程内の敵を手前から順に最大n体
 function pickTargets(a,n){
   const rg=a.d.range*a.rg,r2=rg*rg,c=[];
@@ -1635,7 +1653,8 @@ function updShots(dt){
     if(L<=st+4){
       fxSpark(s.tx,s.ty,s.col,5);
       if(s.from){if(s.a&&s.a.d.id==='sister')fxTex({n:'pillar',x:s.tx,y:s.ty+16,w:30,ay:0.93,life:0.32,vy0:0.2,a:0.8,fi:0.06,fo:1.5});
-        fxTex({n:'spark',col:s.col,x:s.tx,y:s.ty,w:26,life:0.18,s0:0.6,s1:1.1,rot:Math.random()*TAU,fi:0.05,fo:1.4})}
+        fxTex({n:'spark',col:s.col,x:s.tx,y:s.ty,w:26,life:0.18,s0:0.6,s1:1.1,rot:Math.random()*TAU,fi:0.05,fo:1.4});
+        if(s.sw)fxTex({n:s.sw,col:s.col,x:s.tx,y:s.ty,w:52,rot:-2.36+(Math.random()-0.5)*0.5,fx:Math.random()<0.5?-1:1,life:0.22,s0:0.8,s1:1.05,fi:0.08,fo:1.6})}
       if(s.from){
         let next=null;
         if(s.tg&&!s.tg.dead){
@@ -1729,11 +1748,14 @@ function step(dt){
     if(a.pend){
       a.pend.t-=dt;
       if(a.pend.t<=0){
-        const p=a.pend;a.pend=null;const tg=p.tg.dead?pickTarget(a):p.tg;
-        if(tg){allyHit(a,tg,0);if(a.d.atk!=='single')for(let k=1;k<=m.multi;k++)B.echoes.push({t:0.11*k,a,k})}
+        const p=a.pend;a.pend=null;
+        if(p.far){const tg=p.tg.dead?pickFar(a):p.tg;if(tg)farShot(a,tg)}
+        else{const tg=p.tg.dead?pickTarget(a):p.tg;
+          if(tg){allyHit(a,tg,0);if(a.d.atk!=='single')for(let k=1;k<=m.multi;k++)B.echoes.push({t:0.11*k,a,k})}}
       }
     }
-    else if(a.cdT<=0){const tg=pickTarget(a);if(tg){const cd=a.d.cd/m.spd*(B.hasteT>0?0.5:1);a.cdT=cd;a.animT=0;a.animDur=Math.min(cd,0.45);a.animHit=HIT_AT;a.pend={t:a.animDur*HIT_AT,tg}}}
+    else if(a.cdT<=0){let tg=pickTarget(a),far=false;if(!tg&&a.d.far){tg=pickFar(a);far=!!tg}
+      if(tg){const cd=a.d.cd/m.spd*(B.hasteT>0?0.5:1)*(far?a.d.far.cd:1);a.cdT=cd;a.animT=0;a.animDur=Math.min(cd,0.45);a.animHit=HIT_AT;a.pend={t:a.animDur*HIT_AT,tg,far}}}
   }
   // 多重撃：斬撃や光線の「もう一振り」
   for(let i=B.echoes.length-1;i>=0;i--){
@@ -2272,6 +2294,11 @@ function render(T){
   // 加算合成の光もの
   g.globalCompositeOperation='lighter';
   for(const s of B.shots){
+    if(s.sw){ // 飛ぶ斬撃：進む向きに寝かせた三日月の光。素材が無ければ弧を描く
+      const ang=Math.atan2(s.ty-s.y,s.tx-s.x),im=vsmall(s.sw,s.col,30,30);g.save();g.translate(s.x,s.y);g.rotate(ang+Math.PI*0.75);g.globalAlpha=1;
+      if(im)g.drawImage(im,-15,-15,30,30);else{g.strokeStyle=s.col;g.lineWidth=2.5;g.beginPath();g.arc(0,0,11,-1.2,1.2);g.stroke()}
+      g.restore();continue;
+    }
     const id=s.from&&s.a?s.a.d.id:null,fb=id==='fox'?vsmall('firebolt',null,11,31):null,ob=id==='sister'?vsmall('orb','#ffe9a0',18,18):null;
     if(fb){ // 狐火をまとったクナイ：進む向きに回し、炎を尾として引く。刃先は鋼の光
       const ang=Math.atan2(s.ty-s.y,s.tx-s.x);g.save();g.translate(s.x,s.y);g.rotate(ang+Math.PI/2);
