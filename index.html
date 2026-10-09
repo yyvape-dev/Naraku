@@ -303,6 +303,12 @@ img.frm{display:block;width:100%;height:100%}
 .pt.surge{animation:ptSurge .9s ease-out}
 @keyframes ptSurge{0%{box-shadow:0 0 0 2px #fff,0 0 18px #8155c2}100%{box-shadow:none}}
 #mapOps{display:none;gap:6px;margin-top:8px}
+/* 机の盤のとき：下部エリアを透かして机の続き（羅針盤・天球儀）を見せる。机の絵の位置は JS（tableGeo）が #app の背景に書く */
+#app:not(.exploring){background:var(--soot)!important}
+#app.tbl.exploring #cmd{background:linear-gradient(rgba(6,4,3,.42),rgba(6,4,3,.08) 35%,rgba(6,4,3,.2));border-top-color:rgba(179,147,85,.55)}
+#app.tbl.exploring .pt{background:rgba(8,6,5,.42);border-color:rgba(150,120,70,.6)}
+#app.tbl.exploring .card.dest{background:linear-gradient(160deg,rgba(42,33,26,.5),rgba(12,9,7,.34));-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);border-color:rgba(179,147,85,.6)}
+#app.tbl.exploring #mapOps button{background:rgba(18,13,10,.42);-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);border-color:rgba(179,147,85,.6)}
 .exploring #mapOps{display:flex}
 #mapOps button{height:42px;padding:0 12px;font-size:13px;white-space:nowrap;border-radius:2px;background:#17120e;border:1px solid var(--gold-dim)}
 #mapOps button:disabled{opacity:.38}
@@ -2358,30 +2364,45 @@ let boardT=null,mapOv=null,fogC=null;const medalC={},pieceFace={};
 // TABLE_IN＝元画像に対する盤の内側の位置（割合）。cy＝画面に置くときに中央へ寄せる高さ。HUD＝上の情報帯の高さ（盤をその下へ寄せる）
 const TABLE_IN={x0:.1055,x1:.8906,y0:.1302,y1:.7878,cy:.459},MAP_HUD=44;
 let tableG=null;
+// 机は画面全体（戦場＋下部エリア）に敷く。幅に合わせ、縦が足りなければ最大1.1倍まで広げる（左右が少し切れる）。
+// 盤の中心は「上の情報帯の下〜戦場の下端」の中央へ寄せる。戦場（Canvas）の分は Canvas に描き、下部エリアの分は #app の背景として透かして見せる
 function tableGeo(){
-  const im=SPR.table;if(!im)return null;const k=Math.round(H);if(tableG&&tableG._k===k)return tableG;
-  const s=Math.max(W/im.width,H/im.height),iw=im.width*s,ih=im.height*s,ox=(W-iw)/2,oy=clamp((MAP_HUD+H)/2-TABLE_IN.cy*ih,H-ih,0);
-  const c=mkCanvas(W*2,k*2),g=c.getContext('2d');g.scale(2,2);g.imageSmoothingQuality='high';g.drawImage(im,ox,oy,iw,ih);
-  return tableG={_k:k,c,x0:ox+TABLE_IN.x0*iw,x1:ox+TABLE_IN.x1*iw,y0:oy+TABLE_IN.y0*ih,y1:oy+TABLE_IN.y1*ih};
+  const im=SPR.table;if(!im)return null;
+  const ar=$('#arena').getBoundingClientRect(),ap=$('#app').getBoundingClientRect();if(ar.width<10||ap.height<10)return null;
+  const key=Math.round(H)+'|'+Math.round(ar.width)+'|'+Math.round(ar.height)+'|'+Math.round(ap.height);if(tableG&&tableG._k===key)return tableG;
+  const k=W/ar.width,Aw=ap.width,Ah=ap.height,top=ar.top-ap.top,arH=ar.height,lft=ar.left-ap.left;
+  const z=clamp(Ah/(Aw*im.height/im.width),1,1.1),iw=Aw*z,ih=iw*im.height/im.width,ox=(Aw-iw)/2,hud=MAP_HUD/k;
+  let oy=top+(hud+arH)/2-TABLE_IN.cy*ih;oy=ih>=Ah?clamp(oy,Ah-ih,0):clamp(oy,0,Ah-ih);
+  const c=mkCanvas(W*2,Math.round(H)*2),g=c.getContext('2d');g.scale(2,2);g.fillStyle='#0d0906';g.fillRect(0,0,W,H);
+  const X=v=>(v-lft)*k,Y=v=>(v-top)*k;
+  g.imageSmoothingQuality='high';g.drawImage(im,X(ox),Y(oy),iw*k,ih*k);
+  const el=$('#app');el.classList.add('tbl');
+  el.style.background='url('+UI.table+') '+ox.toFixed(1)+'px '+oy.toFixed(1)+'px / '+iw.toFixed(1)+'px '+ih.toFixed(1)+'px no-repeat,#0d0906';
+  const t={_k:key,c,x0:X(ox+TABLE_IN.x0*iw),x1:X(ox+TABLE_IN.x1*iw),y0:Y(oy+TABLE_IN.y0*ih),y1:Y(oy+TABLE_IN.y1*ih)};
+  t.v0=Math.max(t.y0,MAP_HUD-4);t.v1=Math.min(t.y1,H-2); // 盤のうち戦場に見えている範囲
+  return tableG=t;
 }
+// 段の間隔：机の盤では、見えている盤の高さの37%（今いる段＋2つ先まで盤に収める）
+function rowDY(){const t=tableGeo();return t?(t.v1-t.v0)*0.37:MAP_DY}
 // 盤の内側（机が無いときは画面全体）
 function boardBox(){const t=tableGeo();return t?t:{x0:0,x1:W,y0:0,y1:H}}
 // マスの位置：nodeW=盤の上の座標（入口が0、奥へ進むほど上） / mapXY=画面上の座標
 function nodeW(n){ // マスは、その段に彫った弧の上に乗る
   const t0=tableGeo();
   if(t0){ // 机の盤：盤の内側の幅に3マス並べる。弧は浅く
-    const bw=t0.x1-t0.x0,x=(t0.x0+t0.x1)/2+(n.i-(n.n-1)/2)*bw*0.31+(n.n===1?0:n.jx*14),t=clamp((x-t0.x0)/bw,0,1);
-    return{x,y:-n.L*MAP_DY+9-22*t*(1-t)};
+    const bw=t0.x1-t0.x0,x=(t0.x0+t0.x1)/2+(n.i-(n.n-1)/2)*bw*(n.n>=3?0.29:0.31)+(n.n===1?0:n.jx*(n.n>=3?8:14)),t=clamp((x-t0.x0)/bw,0,1);
+    return{x,y:-n.L*rowDY()+9-22*t*(1-t)};
   }
   const x=W*(0.5+(n.i-(n.n-1)/2)*0.34)+(n.n===1?0:n.jx*22),t=clamp((x-RAIL_X-4)/(W-2*RAIL_X-8),0,1);
   return{x,y:-n.L*MAP_DY+9-ARC_SAG*t*(1-t)};
 }
-const camTarget=()=>{const t=tableGeo();return nodeW(R.map.nodes[R.at]).y-(t?t.y0+(t.y1-t.y0)*0.8:H*0.72)};
+const camTarget=()=>{const t=tableGeo();return nodeW(R.map.nodes[R.at]).y-(t?t.v0+(t.v1-t.v0)*0.87:H*0.72)};
 function mapCam(){if(R.camY==null)R.camY=camTarget();return R.camY}
 function mapXY(n){const p=nodeW(n);p.y-=mapCam();return p}
 // rel=現在地から見た関係（cur / adj=次に進める / past=通過済み / near=2歩先）
 function nodeRel(n,cur){return n.id===R.at?'cur':cur.next.indexOf(n.id)>=0?'adj':R.seen[n.id]?'past':'near'}
-const nodeR=(n,rel)=>(rel==='cur'?30:rel==='adj'?28:rel==='past'?24:22)+(n.type==='boss'?4:0);
+const nodeK=n=>n.n>=3&&SPR.table?0.84:1; // 机の盤で1段に3マス並ぶときは一回り小さく
+const nodeR=(n,rel)=>((rel==='cur'?30:rel==='adj'?28:rel==='past'?24:22)+(n.type==='boss'?4:0))*nodeK(n);
 // 盤面：1枚の絵を上下反転で継いで、縦にいくらでも続くようにする
 function buildBoard(){
   const img=SPR.map||SPR.bg[BG_DEPTH.find(k=>SPR.bg[k])]||null,th=img?Math.round(W*img.height/img.width):540;
@@ -2507,7 +2528,7 @@ function drawEngrave(g,nd,cam){
   }}
   for(const n of nd){
     const p=mapXY(n);if(p.y<-60||p.y>H+60)continue;
-    const r=(n.n===1?30:26)+(TB?5:7)+(n.type==='boss'?6:0);
+    const r=((n.n===1?30:26)+(TB?5:7)+(n.type==='boss'?6:0))*nodeK(n);
     g.fillStyle='rgba(0,0,0,.36)';g.beginPath();g.arc(p.x,p.y,r,0,TAU);g.fill();
     eng(()=>{g.beginPath();g.arc(p.x,p.y,r,0,TAU);g.stroke()},0.42);
     eng(()=>{g.beginPath();g.arc(p.x,p.y,r+4,0,TAU);g.stroke()},0.16);
@@ -2521,7 +2542,7 @@ function drawMap(T){
   if(!TB&&(!mapOv||mapOv._k!==Math.round(H)))buildMapOv();
   const nd=R.map.nodes,near=reach2(),cur=nd[R.at],walking=!!R.walk,ls=lightState(),free=mode==='map'&&!walking,cam=mapCam();
   if(TB){ // 机と盤は固定。灯りが減るほど机も暗くなる。盤の内側だけに、マス・道・闇を描く
-    g.drawImage(TB.c,0,0,W,H);g.fillStyle='rgba(4,2,2,'+(0.42*(1-R.light/100)+(ls==='dark'?0.12:0))+')';g.fillRect(0,0,W,H);
+    g.drawImage(TB.c,0,0,W,H);g.fillStyle='rgba(4,2,2,'+(0.18+0.32*(1-R.light/100)+(ls==='dark'?0.1:0))+')';g.fillRect(0,0,W,H);
     g.save();g.beginPath();g.rect(TB.x0,TB.y0,TB.x1-TB.x0,TB.y1-TB.y0);g.clip();
   }else{const th=boardT.h;for(let k=Math.floor(cam/th);k*th-cam<H;k++)g.drawImage(boardT[((k%2)+2)%2],0,Math.round(k*th-cam),W,th)}
   // 奈落の底（ボス部屋）：赤い光と、沈んでいく同心の輪
@@ -2567,16 +2588,20 @@ function drawMap(T){
   // 闇：駒のまわりだけ灯りで晴らす。歩いてきた道は、うっすら覚えている
   const fh=Math.round(H);
   if(!fogC||fogC.width!==W||fogC.height!==fh)fogC=mkCanvas(W,fh);
-  const fg=fogC.getContext('2d'),rad=MAP_DY*(1.15+2.2*R.light/100)*(1+(Math.random()-0.5)*0.025),cy=lead.y-30;
-  fg.globalCompositeOperation='source-over';fg.clearRect(0,0,W,fh);fg.fillStyle=ls==='dark'?'rgba(9,4,16,.9)':'rgba(3,2,2,.84)';fg.fillRect(0,0,W,fh);
+  const fg=fogC.getContext('2d'),rad=rowDY()*(TB?0.62+0.5*R.light/100:1.15+2.2*R.light/100)*(1+(Math.random()-0.5)*0.025),cy=lead.y-30;
+  fg.globalCompositeOperation='source-over';fg.clearRect(0,0,W,fh);fg.fillStyle=ls==='dark'?(TB?'rgba(8,4,14,.8)':'rgba(9,4,16,.9)'):TB?(ls==='dim'?'rgba(4,3,2,.66)':'rgba(4,3,2,.56)'):'rgba(3,2,2,.84)';fg.fillRect(0,0,W,fh);
   fg.globalCompositeOperation='destination-out';
   let gr=fg.createRadialGradient(lead.x,cy,rad*0.18,lead.x,cy,rad);gr.addColorStop(0,'rgba(0,0,0,1)');gr.addColorStop(0.55,'rgba(0,0,0,.9)');gr.addColorStop(1,'rgba(0,0,0,0)');
   fg.fillStyle=gr;fg.beginPath();fg.arc(lead.x,cy,rad,0,TAU);fg.fill();
+  if(TB){ // 机の盤：駒のほかは、次に進めるマス（明るく）と2歩先（うっすら）だけを灯す。選んだマスは一番明るい
+    for(const v of view){if(!v.on||v.far||v.rel==='past'||v.rel==='cur')continue;const sel=R.sel===v.n.id,rr=v.r*(v.rel==='adj'?(sel?2.6:2.1):1.7),al=v.rel==='adj'?(sel?1:0.82):0.45*R.light/100+0.1;
+      gr=fg.createRadialGradient(v.p.x,v.p.y,v.r*0.6,v.p.x,v.p.y,rr);gr.addColorStop(0,'rgba(0,0,0,'+al+')');gr.addColorStop(1,'rgba(0,0,0,0)');fg.fillStyle=gr;fg.beginPath();fg.arc(v.p.x,v.p.y,rr,0,TAU);fg.fill()}
+  }
   for(const id in R.seen){const q=view[id].p;if(q.y>H+50)continue;gr=fg.createRadialGradient(q.x,q.y,0,q.x,q.y,44);gr.addColorStop(0,'rgba(0,0,0,.6)');gr.addColorStop(1,'rgba(0,0,0,0)');fg.fillStyle=gr;fg.beginPath();fg.arc(q.x,q.y,44,0,TAU);fg.fill()}
   g.drawImage(fogC,0,0,W,H);
   if(TB){ // 盤の奥（まだ見通せない先）に漂う煙。灯りが減るほど濃く、低く降りてくる
     const bw=TB.x1-TB.x0,dk=1-R.light/100;
-    for(let i=0;i<4;i++){const span=bw+240,x=TB.x0-120+((T*(7+i*2)+i*span/4)%span),y=TB.y0+18+i%2*22+dk*40;smokeAt(g,i,x,y,190+i%2*40,0.16+0.42*dk)}
+    for(let i=0;i<4;i++){const span=bw+240,x=TB.x0-120+((T*(7+i*2)+i*span/4)%span),y=TB.y0+18+i%2*22+dk*40;smokeAt(g,i,x,y,150+i%2*40,0.1+0.3*dk)}
     g.restore();
   }
   g.globalCompositeOperation='lighter';
@@ -2588,7 +2613,7 @@ function drawMap(T){
   // 選んだマスの名札
   if(R.sel!=null&&view[R.sel].on&&!walking){
     const v=view[R.sel],t=v.f.name+' ・ '+v.f.text;g.font='600 11px '+FONT;
-    const tw=g.measureText(t).width+18,x=clamp(v.p.x,tw/2+12,W-tw/2-12),y=v.p.y+v.r+(v.p.y+v.r+34>H?-2*v.r-30:8);
+    const tw=g.measureText(t).width+18,x=clamp(v.p.x,tw/2+12,W-tw/2-12),y=TB?v.p.y-v.r-27:v.p.y+v.r+(v.p.y+v.r+34>H?-2*v.r-30:8); // 机の盤では駒に重ならないよう上に出す
     g.fillStyle='rgba(8,6,5,.9)';g.strokeStyle=v.f.col;g.lineWidth=1;g.beginPath();g.rect(x-tw/2,y,tw,20);g.fill();g.stroke();
     g.fillStyle='#ffe6a8';g.textAlign='center';g.textBaseline='middle';g.fillText(t,x,y+10.5);
   }
