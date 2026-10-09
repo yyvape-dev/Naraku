@@ -107,8 +107,8 @@ img.frm{display:block;width:100%;height:100%}
 #hand.sk .ar img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;display:block}
 #hand.sk .ar::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 7px 1px rgba(38,20,8,.9),inset 0 0 2px rgba(20,10,4,.95);background:linear-gradient(transparent 58%,rgba(8,5,3,.62) 78%,rgba(8,5,3,.9)),radial-gradient(ellipse at 50% 40%,transparent 55%,rgba(20,10,4,.5))}
 #hand.sk .sn{position:absolute;left:7%;right:6.5%;bottom:14%;padding:5px 0 3px;text-align:center;font-size:14px;font-weight:700;line-height:1.1;letter-spacing:.03em;color:#fff0c4;white-space:nowrap;
-  background:linear-gradient(90deg,rgba(8,5,3,0),rgba(8,5,3,.78) 16%,rgba(8,5,3,.78) 84%,rgba(8,5,3,0));
-  text-shadow:0 0 1px #000,0 1px 1px #000,0 0 4px rgba(0,0,0,.95),0 0 6px rgba(255,190,90,.25)}
+  background:linear-gradient(90deg,rgba(8,5,3,0),rgba(8,5,3,.4) 18%,rgba(8,5,3,.4) 82%,rgba(8,5,3,0));
+  text-shadow:0 0 1px #000,0 1px 1px #000,0 0 3px #000,0 0 5px rgba(0,0,0,.95),0 0 7px rgba(255,190,90,.25)}
 #hand.sk .sn.lg{font-size:11px;letter-spacing:-.05em}
 #hand.sk .fr{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:block;filter:sepia(.18) brightness(.87) saturate(.84) hue-rotate(-4deg)}
 /* 枠の質感：くすんだ真鍮（黄土色寄り）。絵（.ar）には掛けない。選べる札は輪郭に沿って細く弱い金の光、選んだ札だけ光を強める */
@@ -116,8 +116,13 @@ img.frm{display:block;width:100%;height:100%}
 @media (hover:hover){#hand.sk button.card:hover .fr{filter:sepia(.18) brightness(.9) saturate(.85) hue-rotate(-4deg) drop-shadow(0 0 1.5px rgba(212,176,104,.75))}}
 #hand.sk button.card.sel .fr{filter:sepia(.14) brightness(1) saturate(.9) hue-rotate(-4deg) drop-shadow(0 0 1.5px rgba(232,200,128,.95)) drop-shadow(0 0 4px rgba(196,154,78,.55))}
 #hand.sk .ki{position:absolute;left:18%;right:17%;bottom:4.6%;height:9.5%;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;letter-spacing:.3em;text-indent:.3em;color:#3b220e;text-shadow:0 1px 0 rgba(255,240,200,.35)}
-#hand.sk .card.sel{transform:translateY(-4px) rotate(var(--rot,0deg));filter:drop-shadow(0 3px 2px rgba(0,0,0,.75)) drop-shadow(0 7px 6px rgba(0,0,0,.4))}
+#hand.sk .card.sel{z-index:5;transform:translateY(-16px) scale(1.17) rotate(0deg);filter:drop-shadow(0 0 3px rgba(255,226,150,.95)) drop-shadow(0 0 10px rgba(255,196,90,.8)) drop-shadow(0 0 22px rgba(255,170,60,.5)) drop-shadow(0 8px 8px rgba(0,0,0,.6));animation:cardSel 1.4s ease-in-out infinite}
+#hand.sk .card.sel .ar img{filter:brightness(1.15) saturate(1.08)}
+@keyframes cardSel{50%{filter:drop-shadow(0 0 4px rgba(255,236,170,1)) drop-shadow(0 0 14px rgba(255,204,100,.95)) drop-shadow(0 0 28px rgba(255,170,60,.65)) drop-shadow(0 8px 8px rgba(0,0,0,.6))}}
+@media (prefers-reduced-motion:reduce){#hand.sk .card.sel{animation:none}}
 #hand.sk .card:active{transform:translateY(-3px) rotate(var(--rot,0deg))}
+#hand.sk .card.sel:active{transform:translateY(-16px) scale(1.17)}
+#hand.sk .card{touch-action:manipulation}#hand.sk .card *{pointer-events:none}
 /* 装填中：札の裏面（暗い革の地に菱形の紋、金が下から満ちる） */
 #hand.sk .card.back .ar{background:repeating-linear-gradient(45deg,#1d140b 0 6px,#150e08 6px 12px)}
 #hand.sk .card.back .ar::after{background:none;left:50%;top:40%;right:auto;bottom:auto;width:44%;aspect-ratio:1;transform:translate(-50%,-50%) rotate(45deg);border:1.5px solid #c9a85a;box-shadow:inset 0 0 0 4px #150e08,inset 0 0 0 5px #8a6a2e}
@@ -1016,7 +1021,7 @@ function bgFor(depth,kind){
   // サイドエリアと手札の右の列にも同じ盤を敷く（盤を90度回した ui_rail_board.webp。四隅の真鍮は変形させず、革だけ縦に繰り返す）
   if(UI.rail_board)css+='#rail,#deco{position:relative;z-index:0}#rail{padding:8px 7px 6px}#rail::before,#deco::before{content:"";position:absolute;z-index:-1;pointer-events:none;border:20px solid transparent;border-image:url('+UI.rail_board+') 66 fill/20px stretch round;filter:brightness(.92)}'
     +'#rail::before{left:2px;right:2px;top:3px;bottom:3px}#deco::before{left:1px;right:1px;top:-1px;bottom:3px;border-width:13px;border-image-width:13px}#deco.art .bn{left:3px;right:3px;top:1px}';
-  if(UI.card_board&&UI.card_frame)css+='#hand.sk{position:relative;z-index:0}#hand.sk::before{content:"";position:absolute;left:-7px;right:-7px;top:-7px;bottom:-7px;z-index:-1;pointer-events:none;border:20px solid transparent;border-image:url('+UI.card_board+') 66 fill/20px stretch round;filter:brightness(.92)}';
+  if(UI.card_board&&UI.card_frame)css+='#hand.sk{position:relative;z-index:1}#hand.sk::before{content:"";position:absolute;left:-7px;right:-7px;top:-7px;bottom:-7px;z-index:-1;pointer-events:none;border:20px solid transparent;border-image:url('+UI.card_board+') 66 fill/20px stretch round;filter:brightness(.92)}';
   if(UI.town)css+='.screen.town:not(.hub){background:linear-gradient(rgba(64,42,24,.9),rgba(36,22,11,.95)),url('+UI.town+') center 45%/cover}';
   // メダルの絵（3×3のシート）を、行き先の札や各マスの画面の丸印にも使う。位置は medalPos() が決める
   if(UI.medals)css+='.mart{background-image:url('+UI.medals+')!important;background-size:300% 300%!important;background-repeat:no-repeat!important;background-color:transparent!important;border:0!important;color:transparent!important}'
@@ -3476,15 +3481,22 @@ $('#tuneCopy').addEventListener('click',()=>{
 /* =========================================================
    8. 入力
    ========================================================= */
+// 戦闘の札は指が触れた瞬間（pointerdown）に反応させる。click は指を離すまで待ち、その間に手札が描き直されると消えていた
+function handPick(ev){
+  const el=ev.target.closest&&ev.target.closest('.card');if(!el||!B||mode!=='battle'||paused)return;
+  const i=+el.dataset.i,s=B.slots[i];if(!s||!s.card)return;
+  if(s.card.kind==='instant'){HFLASH={msg:s.card.name+'：'+s.card.desc,until:performance.now()+1600};useCard(i,0,0)}else B.sel=B.sel===i?null:i;
+}
+let handDownT=-1e9;
+elHand.addEventListener('pointerdown',ev=>{if(R&&!B)return;if(ev.button>0)return;handDownT=performance.now();handPick(ev);ev.preventDefault()});
+elHand.addEventListener('pointerup',()=>{handDownT=performance.now()}); // 長押しのあとの click も無視する
 elHand.addEventListener('click',ev=>{
   if(R&&!B){ // 探索中：行き先の札。1回目で選び、同じ札をもう一度押すと進む
     const nb=ev.target.closest('[data-node]');if(!nb||mode!=='map'||R.walk)return;
     const id=+nb.dataset.node;if(R.sel===id)travel(id);else R.sel=id;
     return;
   }
-  const el=ev.target.closest('.card');if(!el||mode!=='battle'||paused)return;
-  const i=+el.dataset.i,s=B.slots[i];if(!s.card)return;
-  if(s.card.kind==='instant'){HFLASH={msg:s.card.name+'：'+s.card.desc,until:performance.now()+1600};useCard(i,0,0)}else B.sel=B.sel===i?null:i;
+  if(performance.now()-handDownT>1000)handPick(ev); // キーボード操作など pointerdown を伴わないときだけ（指・マウスは処理済み）
 });
 function toArena(ev){const r=cv.getBoundingClientRect();return{x:(ev.clientX-r.left)/r.width*W,y:(ev.clientY-r.top)/r.height*H}}
 cv.addEventListener('pointerdown',ev=>{
