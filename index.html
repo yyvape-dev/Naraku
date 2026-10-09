@@ -314,6 +314,8 @@ img.frm{display:block;width:100%;height:100%}
 #mapOps button:disabled{opacity:.38}
 #btnGo{flex:1;border-color:var(--gold)!important;background:linear-gradient(#3a2d1c,#1c150e)!important;color:var(--gold-hi);font-size:15px!important;letter-spacing:.3em}
 #hand.dest{grid-template-columns:repeat(var(--n,3),1fr)}
+/* 行き先が4つのとき：札が狭いので、詰めて「その先」の文字を省く */
+#hand.dest.n4{gap:4px}#hand.dest.n4 .card.dest{padding:5px 4px 4px}#hand.dest.n4 .card.dest .nm{font-size:12.5px}#hand.dest.n4 .card.dest .ds{font-size:9.5px}#hand.dest.n4 .card.dest .hd{gap:4px}#hand.dest.n4 .nx b{display:none}.card.dest .nx b{font-weight:400}
 .card.dest{display:flex;flex-direction:column;padding:6px 7px 5px}
 .card.dest .hd{display:flex;align-items:center;gap:7px}
 .card.dest .em{flex:none;width:30px;height:30px;margin:2px 0 0 2px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:16px;font-weight:700;color:#fff3d6;background:radial-gradient(circle at 40% 35%,var(--oc),#0c0a09 78%);box-shadow:0 0 0 1.5px #c9a85a,0 0 0 3px #3a2a10}
@@ -707,6 +709,7 @@ const UP_FILL={id:'x_heal',fam:'common',name:'魂の癒し',g:'癒',max:99,desc:
 
 /* ---- モジュールB：探索（網の目マップと灯火） ---- */
 const XCFG={stepsMin:7,stepsMax:10,           // スタートからボス部屋までの歩数
+  rowW:{2:35,3:40,4:25},                      // 収束しない段に並ぶマスの数の重み（2〜4マス。2026-10-09 夜に最大3→4へ）
   lightStep:10,lightClear:70,lightDim:30,     // 灯りは1歩で10%減る。70%以上＝明瞭 / 30%以上＝薄暗がり / それ未満＝完全な暗闇
   darkMad:15,                                 // 暗闇で1歩進むごとに、全員の狂気が増える
   reviveHp:0.3,                               // 戦闘不能の味方は、戦闘に勝つと最大体力の30%で戦列に戻る
@@ -1920,7 +1923,8 @@ function genMap(seed){
   const camps=steps>=9?[Math.round(steps/3),Math.round(steps*2/3)]:[Math.ceil(steps/2)];
   const nodes=[],layers=[];
   for(let L=0;L<=steps;L++){
-    const single=L===0||L===steps||camps.indexOf(L)>=0,n=single?1:2+(r()<0.55?1:0),row=[];
+    const single=L===0||L===steps||camps.indexOf(L)>=0,row=[];let n=1;
+    if(!single){let tot=0;for(const k in XCFG.rowW)tot+=XCFG.rowW[k];let q=r()*tot;for(const k in XCFG.rowW){q-=XCFG.rowW[k];if(q<0){n=+k;break}}if(n<2)n=2}
     for(let i=0;i<n;i++){
       const id=nodes.length;
       nodes.push({id,L,i,n,type:L===0?'start':L===steps?'boss':single?'camp':'battle',next:[],prev:[],seed:hash32(seed^Math.imul(id+1,0x9E3779B1)),jx:r()-0.5,jy:r()-0.5,hint:'',ev:-1});
@@ -1928,7 +1932,7 @@ function genMap(seed){
     }
     layers.push(row);
   }
-  // 道：1歩ごとに2〜3分岐（収束先が1マスのときだけ1本）。近いマスどうしを結ぶ
+  // 道：1歩ごとに2〜3分岐（収束先が1マスのときだけ1本。4マスの段へは近い2〜3マスへ）。近いマスどうしを結ぶ
   const link=(a,b)=>{if(nodes[a].next.indexOf(b)<0){nodes[a].next.push(b);nodes[b].prev.push(a)}};
   for(let L=0;L<steps;L++){
     const a=layers[L],b=layers[L+1],pos=i=>a.length===1?(b.length-1)/2:i/(a.length-1)*(b.length-1);
@@ -2390,7 +2394,7 @@ function boardBox(){const t=tableGeo();return t?t:{x0:0,x1:W,y0:0,y1:H}}
 function nodeW(n){ // マスは、その段に彫った弧の上に乗る
   const t0=tableGeo();
   if(t0){ // 机の盤：盤の内側の幅に3マス並べる。弧は浅く
-    const bw=t0.x1-t0.x0,x=(t0.x0+t0.x1)/2+(n.i-(n.n-1)/2)*bw*(n.n>=3?0.29:0.31)+(n.n===1?0:n.jx*(n.n>=3?8:14)),t=clamp((x-t0.x0)/bw,0,1);
+    const bw=t0.x1-t0.x0,x=(t0.x0+t0.x1)/2+(n.i-(n.n-1)/2)*bw*(n.n>=4?0.235:n.n===3?0.29:0.31)+(n.n===1?0:n.jx*(n.n>=4?5:n.n===3?8:14)),t=clamp((x-t0.x0)/bw,0,1);
     return{x,y:-n.L*rowDY()+9-22*t*(1-t)};
   }
   const x=W*(0.5+(n.i-(n.n-1)/2)*0.34)+(n.n===1?0:n.jx*22),t=clamp((x-RAIL_X-4)/(W-2*RAIL_X-8),0,1);
@@ -2401,7 +2405,7 @@ function mapCam(){if(R.camY==null)R.camY=camTarget();return R.camY}
 function mapXY(n){const p=nodeW(n);p.y-=mapCam();return p}
 // rel=現在地から見た関係（cur / adj=次に進める / past=通過済み / near=2歩先）
 function nodeRel(n,cur){return n.id===R.at?'cur':cur.next.indexOf(n.id)>=0?'adj':R.seen[n.id]?'past':'near'}
-const nodeK=n=>n.n>=3&&SPR.table?0.84:1; // 机の盤で1段に3マス並ぶときは一回り小さく
+const nodeK=n=>!SPR.table?1:n.n>=4?0.68:n.n===3?0.8:0.9; // 机の盤：基準は0.9倍、1段に3マスなら0.8倍、4マスなら0.68倍
 const nodeR=(n,rel)=>((rel==='cur'?30:rel==='adj'?28:rel==='past'?24:22)+(n.type==='boss'?4:0))*nodeK(n);
 // 盤面：1枚の絵を上下反転で継いで、縦にいくらでも続くようにする
 function buildBoard(){
@@ -2467,7 +2471,7 @@ function studs(g,a,b,ra,rb,mode,T){
 // 台座つきの駒（顔絵をはめた立て札型。立像の絵ができたら、ここを差し替える）。down=精神崩壊して倒れた駒
 function drawPiece(g,x,y,id,s,down,lift){
   if(SPR.pieces){ // 絵の駒（横5コマのシート。各コマの下端中央が台座の底）
-    const im=SPR.pieces,cw=im.width/CHAR_ORDER.length,hh=78*s,ww=hh*cw/im.height,k=Math.max(0,CHAR_ORDER.indexOf(id));
+    const im=SPR.pieces,cw=im.width/CHAR_ORDER.length,hh=(SPR.table?64:78)*s,ww=hh*cw/im.height,k=Math.max(0,CHAR_ORDER.indexOf(id));
     g.fillStyle='rgba(0,0,0,'+(0.6-Math.min(0.3,lift*0.015))+')';g.beginPath();g.ellipse(x+2,y+3,ww*0.34,ww*0.12,0,0,TAU);g.fill();
     g.save();g.translate(x,y+4-lift);if(down){g.translate(ww*0.25,-ww*0.12);g.rotate(1.38);g.globalAlpha=0.5}
     g.imageSmoothingQuality='high';g.drawImage(im,k*cw,0,cw,im.height,-ww/2,-hh,ww,hh);g.restore();
@@ -2602,6 +2606,16 @@ function drawMap(T){
   if(TB){ // 盤の奥（まだ見通せない先）に漂う煙。灯りが減るほど濃く、低く降りてくる
     const bw=TB.x1-TB.x0,dk=1-R.light/100;
     for(let i=0;i<4;i++){const span=bw+240,x=TB.x0-120+((T*(7+i*2)+i*span/4)%span),y=TB.y0+18+i%2*22+dk*40;smokeAt(g,i,x,y,150+i%2*40,0.1+0.3*dk)}
+    // 金の光（モックに合わせて、金寄りでぼんやり広く）：駒の足もとの光だまり、選んだマス（一番強く、光の粒が昇る）、次に進めるマス（弱く明滅）
+    g.globalCompositeOperation='lighter';const lk=0.45+0.55*R.light/100;
+    const glow=(x,y,rr,a,sy)=>{g.save();g.translate(x,y);g.scale(1,sy||1);const q=g.createRadialGradient(0,0,0,0,0,rr);q.addColorStop(0,'rgba(255,196,96,'+a+')');q.addColorStop(0.45,'rgba(230,150,50,'+a*0.45+')');q.addColorStop(1,'rgba(200,120,40,0)');g.fillStyle=q;g.beginPath();g.arc(0,0,rr,0,TAU);g.fill();g.restore()};
+    if(!walking){const pb=view[R.at].p;glow(pb.x,pb.y+6,88,0.34*lk,0.5);glow(pb.x,pb.y-14,60,0.16*lk);
+      g.strokeStyle='rgba(255,214,140,'+(0.28+0.1*Math.sin(T*2))*lk+')';g.lineWidth=1.4;g.beginPath();g.ellipse(pb.x,pb.y+6,46,15,0,0,TAU);g.stroke();
+      g.strokeStyle='rgba(255,214,140,'+0.14*lk+')';g.beginPath();g.ellipse(pb.x,pb.y+6,58,19,0,0,TAU);g.stroke()}
+    for(const v of view){if(!v.on||v.far||v.rel!=='adj'||!free)continue;const sel=R.sel===v.n.id,w=Math.sin(T*2.4+v.n.id);
+      glow(v.p.x,v.p.y,v.r*(sel?3.4:2.5),(sel?0.42+0.06*w:0.14+0.06*w)*lk);
+      if(sel)for(let i=0;i<6;i++){const ph=(T*0.5+i/6)%1,a=i*2.4+v.n.id,x=v.p.x+Math.cos(a)*v.r*(0.6+ph*0.9),y=v.p.y+v.r*0.5-ph*v.r*2.2;g.fillStyle='rgba(255,225,160,'+(Math.sin(ph*Math.PI)*0.8)+')';g.beginPath();g.arc(x,y,1.3+0.6*Math.sin(ph*Math.PI),0,TAU);g.fill()}}
+    g.globalCompositeOperation='source-over';
     g.restore();
   }
   g.globalCompositeOperation='lighter';
@@ -2609,7 +2623,7 @@ function drawMap(T){
   if(R.land>0){g.globalAlpha=R.land;g.strokeStyle='#ffe6a8';g.lineWidth=2.5*R.land+0.5;g.beginPath();g.ellipse(b.x,b.y+4,30+(1-R.land)*34,10+(1-R.land)*11,0,0,TAU);g.stroke();g.globalAlpha=1}
   g.globalCompositeOperation='source-over';
   // 駒3体（奥の2体→手前の1体の順に描く）
-  for(const i of [0,2,1]){const m=P.members[i];if(!m)continue;const h=hop(i),o=PIECE_AT[i];drawPiece(g,h.x+o[0],h.y+o[1],m.id,o[2],m.collapsed,m.collapsed?0:h.lift+(walking?0:Math.max(0,Math.sin(T*2.2+i*2.1))*1.2))}
+  for(const i of [0,2,1]){const m=P.members[i];if(!m)continue;const h=hop(i),o=PIECE_AT[i],pk=TB?0.82:1;drawPiece(g,h.x+o[0]*pk,h.y+o[1]*pk,m.id,o[2],m.collapsed,m.collapsed?0:h.lift+(walking?0:Math.max(0,Math.sin(T*2.2+i*2.1))*1.2))}
   // 選んだマスの名札
   if(R.sel!=null&&view[R.sel].on&&!walking){
     const v=view[R.sel],t=v.f.name+' ・ '+v.f.text;g.font='600 11px '+FONT;
@@ -2712,12 +2726,12 @@ function syncMap(){
   const sig='m'+R.at+'|'+R.sel+'|'+R.light+'|'+(busy?1:0);
   if(sig!==handSig){
     handSig=sig;elHand.classList.add('dest');elHand.classList.remove('sk'); // 戦闘の札の見た目（sk）を外す。残ると行き先の札が縦長の札の比率になり、盤面が縮む
-    elHand.style.setProperty('--n',Math.max(1,cur.next.length));
+    elHand.style.setProperty('--n',Math.max(1,cur.next.length));elHand.classList.toggle('n4',cur.next.length>=4);
     const near=reach2();
     elHand.innerHTML=cur.next.map(id=>{
       const art=!!UI.medals,mk=(q,cls)=>'<i class="'+cls+(art&&q.ix>=0?' mart'+(q.ix===MEDAL_UNK?' unk':''):'')+'" style="--c:'+q.col+(art&&q.ix>=0?';'+medalPos(q.ix):'')+'">'+q.g+'</i>';
       const f=nodeInfo(id,near),nx=M.nodes[id].next.map(k=>mk(nodeInfo(k,near),'')).join('');
-      return'<button class="card dest'+(R.sel===id?' sel':'')+'" data-node="'+id+'" style="--oc:'+f.col+'"><span class="hd">'+mk(f,'em')+'<span class="nm">'+f.name+'</span></span><span class="ds">'+f.text+'</span>'+(nx?'<span class="nx">その先'+nx+'</span>':'')+'</button>';
+      return'<button class="card dest'+(R.sel===id?' sel':'')+'" data-node="'+id+'" style="--oc:'+f.col+'"><span class="hd">'+mk(f,'em')+'<span class="nm">'+f.name+'</span></span><span class="ds">'+f.text+'</span>'+(nx?'<span class="nx"><b>その先</b>'+nx+'</span>':'')+'</button>';
     }).join('');
   }
   // 上の帯は、知らせることがあるときだけ出す（マスの情報は、盤上の名札と下の札に出る）
