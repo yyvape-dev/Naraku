@@ -2397,11 +2397,10 @@ function tableGeo(){
   const ar=$('#arena').getBoundingClientRect(),ap=$('#app').getBoundingClientRect();if(ar.width<10||ap.height<10)return null;
   const key=Math.round(H)+'|'+Math.round(ar.width)+'|'+Math.round(ar.height)+'|'+Math.round(ap.height);if(tableG&&tableG._k===key)return tableG;
   const k=W/ar.width,Aw=ap.width,Ah=ap.height,top=ar.top-ap.top,arH=ar.height,lft=ar.left-ap.left;
-  // 短い画面では、盤の外枠（元画像の高さの約10.5%〜81.5%）が「上の帯の下〜戦場の下端の少し上」に収まるまで机を縮める（最小0.86倍。左右の隙間は、同じ絵を暗く広げて埋める）
-  const ih0=Aw*im.height/im.width,hud=MAP_HUD/k,fit=(arH-hud-30)/0.71;
-  const z=clamp(Math.min(Ah/ih0,fit/ih0),0.86,1.1),iw=Aw*z,ih=ih0*z,ox=(Aw-iw)/2;
-  let oy=top+(hud+arH)/2-TABLE_IN.cy*ih;
-  if(z<1)oy=top+hud+2-0.105*ih;else oy=ih>=Ah?clamp(oy,Ah-ih,0):clamp(oy,0,Ah-ih);
+  // 短い画面で机ごと縮める案（最小0.86倍）は、盤とメダルが小さくなり視認性が落ちたため、ユーザーの判断で取りやめ（2026-10-09 夜）
+  const ih0=Aw*im.height/im.width,hud=MAP_HUD/k;
+  const z=clamp(Ah/ih0,1,1.1),iw=Aw*z,ih=ih0*z,ox=(Aw-iw)/2;
+  let oy=top+(hud+arH)/2-TABLE_IN.cy*ih;oy=ih>=Ah?clamp(oy,Ah-ih,0):clamp(oy,0,Ah-ih);
   const c=mkCanvas(W*2,Math.round(H)*2),g=c.getContext('2d');g.scale(2,2);g.fillStyle='#0d0906';g.fillRect(0,0,W,H);
   const X=v=>(v-lft)*k,Y=v=>(v-top)*k;
   g.imageSmoothingQuality='high';
