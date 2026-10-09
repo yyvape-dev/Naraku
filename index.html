@@ -310,6 +310,27 @@ img.frm{display:block;width:100%;height:100%}
 #app.tbl.exploring .card.dest{background:linear-gradient(160deg,rgba(42,33,26,.5),rgba(12,9,7,.34));-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);border-color:rgba(179,147,85,.6)}
 #app.tbl.exploring #mapOps button{background:rgba(18,13,10,.42);-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);border-color:rgba(179,147,85,.6)}
 .exploring #mapOps{display:flex}
+/* 机の盤のとき：モックに合わせた金縁パネル（ui_card_board の真鍮の縁だけを9-sliceで使い、中は半透明）と、下部エリアの詰め（2026-10-09 夜） */
+#app.tbl.exploring #cmd{padding:6px 8px calc(6px + env(safe-area-inset-bottom));border-top:0}
+#app.tbl.exploring #mhud{left:6px;right:6px;top:5px;padding:7px 12px 7px 10px;background:rgba(10,7,5,.62);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+#app.tbl.exploring .pt,#app.tbl.exploring .card.dest,#app.tbl.exploring #mapOps button,#app.tbl.exploring #mhud{position:relative;border:0;border-radius:2px}
+#app.tbl.exploring .pt::before,#app.tbl.exploring .card.dest::before,#app.tbl.exploring #mapOps button::before,#app.tbl.exploring #mhud::before{content:"";position:absolute;inset:0;pointer-events:none;border:9px solid transparent;border-image:var(--cb) 66 / 9px stretch;filter:brightness(1.05)}
+#app.tbl.exploring #mhud::before{border-width:8px;border-image-width:8px}
+#app.tbl.exploring #party{margin-bottom:6px;gap:5px}
+#app.tbl.exploring .pt{padding:8px 10px 10px 8px;background:rgba(10,7,5,.5)}
+#app.tbl.exploring .pt canvas{box-shadow:0 0 0 1.5px #3a2a10,0 0 6px rgba(0,0,0,.8)}
+#app.tbl.exploring #hand.dest{min-height:104px;gap:5px}
+#app.tbl.exploring .card.dest{height:104px;padding:8px 9px 10px;background:linear-gradient(160deg,rgba(40,30,22,.5),rgba(10,7,5,.38))}
+#app.tbl.exploring .card.dest::after{inset:6px;border-color:rgba(214,178,104,.14)}
+#app.tbl.exploring .card.dest.sel{transform:translateY(-4px);box-shadow:0 0 0 1px rgba(255,214,140,.9),0 0 18px rgba(255,190,90,.55),0 6px 14px rgba(0,0,0,.6)}
+#app.tbl.exploring .card.dest .ds{margin-top:3px;line-height:1.35}#app.tbl.exploring .card.dest .nx i.mart{width:18px;height:18px}
+#app.tbl.exploring #hand.dest.n4 .card.dest{padding:7px 6px 6px}
+#app.tbl.exploring #mapOps{margin-top:6px;gap:5px}
+#app.tbl.exploring #mapOps button{height:38px;background:rgba(14,10,7,.5);color:#e8d6ac}
+#app.tbl.exploring #mapOps button#btnGo{background:linear-gradient(rgba(92,66,30,.75),rgba(36,25,14,.7))!important;color:#ffe2a0;text-shadow:0 0 8px rgba(255,190,90,.6);box-shadow:inset 0 0 14px rgba(255,190,90,.18)}
+#app.tbl.exploring #mapOps button#btnGo:not(:disabled){box-shadow:inset 0 0 14px rgba(255,190,90,.28),0 0 12px rgba(255,180,80,.25)}
+#app.tbl.exploring #mapOps button#btnBag,#app.tbl.exploring #mapOps button#btnBack{padding-left:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d9b86a' stroke-width='1.5' stroke-linejoin='round'%3E%3Cpath d='M9 4h6l-1.6 3.2h-2.8z'/%3E%3Cpath d='M10.4 7.2C6 9 4 13 4.6 17c.4 2.4 2.4 3.6 7.4 3.6s7-1.2 7.4-3.6c.6-4-1.4-8-5.8-9.8'/%3E%3Cpath d='M9.6 7.4h4.8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:11px center;background-size:18px}
+#app.tbl.exploring #mapOps button#btnBack{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d9b86a' stroke-width='1.5' stroke-linejoin='round'%3E%3Cpath d='M12 1.5v4M10.4 3h3.2'/%3E%3Cpath d='M8 21V10l4-4.5 4 4.5v11'/%3E%3Cpath d='M3 21v-7l5-3M21 21v-7l-5-3'/%3E%3Cpath d='M10.5 21v-4a1.5 1.5 0 0 1 3 0v4M2 21h20'/%3E%3C/svg%3E")}
 #mapOps button{height:42px;padding:0 12px;font-size:13px;white-space:nowrap;border-radius:2px;background:#17120e;border:1px solid var(--gold-dim)}
 #mapOps button:disabled{opacity:.38}
 #btnGo{flex:1;border-color:var(--gold)!important;background:linear-gradient(#3a2d1c,#1c150e)!important;color:var(--gold-hi);font-size:15px!important;letter-spacing:.3em}
@@ -1031,6 +1052,7 @@ function bgFor(depth,kind){
   // サイドエリアと手札の右の列にも同じ盤を敷く（盤を90度回した ui_rail_board.webp。四隅の真鍮は変形させず、革だけ縦に繰り返す）
   if(UI.rail_board)css+='#rail,#deco{position:relative;z-index:0}#rail{padding:8px 7px 6px}#rail::before,#deco::before{content:"";position:absolute;z-index:-1;pointer-events:none;border:20px solid transparent;border-image:url('+UI.rail_board+') 66 fill/20px stretch round;filter:brightness(.92)}'
     +'#rail::before{left:2px;right:2px;top:3px;bottom:3px}#deco::before{left:1px;right:1px;top:-1px;bottom:3px;border-width:13px;border-image-width:13px}#deco.art .bn{left:3px;right:3px;top:1px}';
+  if(UI.card_board)css+='#app{--cb:url('+UI.card_board+')}'; // 探索の下部エリアの金縁パネル（縁だけを使う）
   if(UI.card_board&&UI.card_frame)css+='#hand.sk{position:relative;z-index:1}#hand.sk::before{content:"";position:absolute;left:-7px;right:-7px;top:-7px;bottom:-7px;z-index:-1;pointer-events:none;border:20px solid transparent;border-image:url('+UI.card_board+') 66 fill/20px stretch round;filter:brightness(.92)}';
   if(UI.town)css+='.screen.town:not(.hub){background:linear-gradient(rgba(64,42,24,.9),rgba(36,22,11,.95)),url('+UI.town+') center 45%/cover}';
   // メダルの絵（3×3のシート）を、行き先の札や各マスの画面の丸印にも使う。位置は medalPos() が決める
@@ -2366,7 +2388,7 @@ const RAIL_X=26,ARC_SAG=44; // 盤の彫り線：左右の軌条の位置 / 段�
 let boardT=null,mapOv=null,fogC=null;const medalC={},pieceFace={};
 // 机と盤（ui_table）：机は画面に固定し、盤の内側だけでマスと道が縦に流れる。
 // TABLE_IN＝元画像に対する盤の内側の位置（割合）。cy＝画面に置くときに中央へ寄せる高さ。HUD＝上の情報帯の高さ（盤をその下へ寄せる）
-const TABLE_IN={x0:.1055,x1:.8906,y0:.1302,y1:.7878,cy:.459},MAP_HUD=44;
+const TABLE_IN={x0:.1055,x1:.8906,y0:.1302,y1:.7878,cy:.459},MAP_HUD=46;
 let tableG=null;
 // 机は画面全体（戦場＋下部エリア）に敷く。幅に合わせ、縦が足りなければ最大1.1倍まで広げる（左右が少し切れる）。
 // 盤の中心は「上の情報帯の下〜戦場の下端」の中央へ寄せる。戦場（Canvas）の分は Canvas に描き、下部エリアの分は #app の背景として透かして見せる
@@ -2375,13 +2397,21 @@ function tableGeo(){
   const ar=$('#arena').getBoundingClientRect(),ap=$('#app').getBoundingClientRect();if(ar.width<10||ap.height<10)return null;
   const key=Math.round(H)+'|'+Math.round(ar.width)+'|'+Math.round(ar.height)+'|'+Math.round(ap.height);if(tableG&&tableG._k===key)return tableG;
   const k=W/ar.width,Aw=ap.width,Ah=ap.height,top=ar.top-ap.top,arH=ar.height,lft=ar.left-ap.left;
-  const z=clamp(Ah/(Aw*im.height/im.width),1,1.1),iw=Aw*z,ih=iw*im.height/im.width,ox=(Aw-iw)/2,hud=MAP_HUD/k;
-  let oy=top+(hud+arH)/2-TABLE_IN.cy*ih;oy=ih>=Ah?clamp(oy,Ah-ih,0):clamp(oy,0,Ah-ih);
+  // 短い画面では、盤の外枠（元画像の高さの約10.5%〜81.5%）が「上の帯の下〜戦場の下端の少し上」に収まるまで机を縮める（最小0.86倍。左右の隙間は、同じ絵を暗く広げて埋める）
+  const ih0=Aw*im.height/im.width,hud=MAP_HUD/k,fit=(arH-hud-30)/0.71;
+  const z=clamp(Math.min(Ah/ih0,fit/ih0),0.86,1.1),iw=Aw*z,ih=ih0*z,ox=(Aw-iw)/2;
+  let oy=top+(hud+arH)/2-TABLE_IN.cy*ih;
+  if(z<1)oy=top+hud+2-0.105*ih;else oy=ih>=Ah?clamp(oy,Ah-ih,0):clamp(oy,0,Ah-ih);
   const c=mkCanvas(W*2,Math.round(H)*2),g=c.getContext('2d');g.scale(2,2);g.fillStyle='#0d0906';g.fillRect(0,0,W,H);
   const X=v=>(v-lft)*k,Y=v=>(v-top)*k;
-  g.imageSmoothingQuality='high';g.drawImage(im,X(ox),Y(oy),iw*k,ih*k);
+  g.imageSmoothingQuality='high';
+  const cs=Math.max(Aw/im.width,Ah/im.height)*1.06,cw2=im.width*cs,ch2=im.height*cs; // 下敷き：画面を覆う大きさの同じ絵を暗くしたもの（縮めたときの隙間埋め）
+  if(z<1||ih<Ah){g.drawImage(im,X((Aw-cw2)/2),Y((Ah-ch2)/2),cw2*k,ch2*k);g.fillStyle='rgba(6,4,3,.62)';g.fillRect(0,0,W,H)}
+  g.drawImage(im,X(ox),Y(oy),iw*k,ih*k);
+  if(z<1){for(const sd of [0,1]){const x=X(sd?ox+iw:ox),q=g.createLinearGradient(x+(sd?-14:14),0,x,0);q.addColorStop(0,'rgba(6,4,3,0)');q.addColorStop(1,'rgba(6,4,3,.9)');g.fillStyle=q;g.fillRect(sd?x-14:x,0,14,H)}}
   const el=$('#app');el.classList.add('tbl');
-  el.style.background='url('+UI.table+') '+ox.toFixed(1)+'px '+oy.toFixed(1)+'px / '+iw.toFixed(1)+'px '+ih.toFixed(1)+'px no-repeat,#0d0906';
+  const P2=(x,y,w,h)=>x.toFixed(1)+'px '+y.toFixed(1)+'px / '+w.toFixed(1)+'px '+h.toFixed(1)+'px no-repeat';
+  el.style.background='url('+UI.table+') '+P2(ox,oy,iw,ih)+(z<1||ih<Ah?',linear-gradient(rgba(6,4,3,.62),rgba(6,4,3,.62)),url('+UI.table+') '+P2((Aw-cw2)/2,(Ah-ch2)/2,cw2,ch2):'')+',#0d0906';
   const t={_k:key,c,x0:X(ox+TABLE_IN.x0*iw),x1:X(ox+TABLE_IN.x1*iw),y0:Y(oy+TABLE_IN.y0*ih),y1:Y(oy+TABLE_IN.y1*ih)};
   t.v0=Math.max(t.y0,MAP_HUD-4);t.v1=Math.min(t.y1,H-2); // 盤のうち戦場に見えている範囲
   return tableG=t;
