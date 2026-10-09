@@ -859,12 +859,12 @@ const CARDS=[
   {id:'fox_fire',  owner:'fox',   name:'狐火乱舞',  kind:'target', r:72, dmg:55, reload:5, desc:'狐火で範囲を焼く',        pal:['#fff3c4','#ff9a2e','#b3340c']},
   {id:'fox_bind',  owner:'fox',   name:'影縫い',    kind:'target', r:95, dmg:15, slow:4.5,reload:8, desc:'広範囲の敵を鈍足にする',pal:['#d8fff4','#2fb89a','#0c3b3a']},
   {id:'sw_quake',  owner:'sword', name:'大地割り',  kind:'target', r:88, dmg:130,knock:44,reload:9, desc:'大打撃を与え吹き飛ばす',pal:['#ffffff','#e6c36a','#6e5220']},
-  {id:'sw_roar',   owner:'sword', name:'鉄壁の咆哮',kind:'instant',guard:5,knockLine:60,reload:12,desc:'5秒間、被害を7割減らす',pal:['#ffffff','#9fc4e8','#2a4a70']},
+  {id:'sw_rift',   owner:'sword', name:'乾坤一擲',  kind:'target', shape:'col',hw:30,dmg:90,zone:3,zdps:40,reload:11,desc:'縦一列を割り、3秒間その道を阻む',pal:['#ffffff','#ffb347','#5a2a0a']},
   {id:'si_pillar', owner:'sister',name:'聖光の柱',  kind:'target', r:76, dmg:85, healFlat:12,reload:8,desc:'浄化し、味方を少し癒す',pal:['#ffffff','#ffe9a0','#b88a2a']},
   {id:'si_pray',   owner:'sister',name:'癒しの祈り',kind:'instant',healPct:0.35,reload:11,desc:'全員の体力を35%回復する',pal:['#ffffff','#bff0c0','#3a8a5a']},
   {id:'mg_inferno',owner:'mage',  name:'奈落の業火',kind:'target', r:112,dmg:170,reload:13,desc:'最大範囲を爆炎で薙ぐ',    pal:['#ffe0f0','#e0365f','#4a0f5a']},
   {id:'bl_moon',   owner:'blue',  name:'蒼月一閃',  kind:'target', shape:'row',hh:36,dmg:65,reload:9, desc:'横一列をまとめて斬り払う',pal:['#ffffff','#4fc3f7','#123a66']},
-  {id:'bl_haste',  owner:'blue',  name:'蒼炎の鼓舞',kind:'instant',haste:5,reload:13,desc:'5秒間、全員の攻撃が倍速',pal:['#ffffff','#7fe0ff','#1a5a8a']},
+  {id:'bl_wave',   owner:'blue',  name:'一閃斬月',  kind:'instant',band:150,push:90,dmg:50,reload:12,desc:'防衛線の前を薙ぎ、敵を押し返す',pal:['#ffffff','#7fe0ff','#1a5a8a']},
   {id:'mg_void',   owner:'mage',  name:'凍てつく虚無',kind:'target',r:100,dmg:40, freeze:2.6,reload:10,desc:'範囲の敵を凍結させる',pal:['#ffffff','#8fd8ff','#2a4f9a']}
 ];
 
@@ -1227,6 +1227,7 @@ function drawTex(g,s){
 function fxTex(o){if(vtex(o.n,o.col))FX.sh.push(Object.assign({k:'tex',t:0},o));return!!VT[o.n]}
 // スキルごとの絵（impact の最後に呼ぶ）。範囲の札には足元の魔法陣を必ず敷く
 function fxSkillTex(c,x,y,r,hh,hits){
+  if(c.shape==='col')return; // 縦一列（乾坤一擲）は fxCol と地割れの帯で描く
   if(c.shape==='row'){fxTex({n:'slash_a',col:c.pal[1],x:W/2,y,w:W*1.25,rot:1.0,sq:Math.min(0.6,hh*3.2/(W*0.9)),life:0.42,s0:0.85,s1:1.08,fi:0.06,fo:1.4});return}
   fxTex({n:'circle',col:c.pal[1],x,y,w:r*2.3,sq:0.55,life:0.85,s0:0.55,s1:1,rot:0,rot1:0.7,a:0.75,fi:0.1,fo:1.3});
   if(c.id==='fox_fire')fxTex({n:'burst',x,y,w:r*2.2,life:0.5,s0:0.35,s1:1.05,rot:Math.random()*TAU,fi:0.06,fo:1.6});
@@ -1503,7 +1504,7 @@ function newBattle(seed){
      // ソウル強化（戦闘1回分。逆転の右手で消える）。ru=強化の抽選用。逆転の右手を使うたびに引き直しになる / rk=会心の判定用
      stat:{},statX:0, // 与ダメージの集計（味方ごと。statX=禁忌など持ち主のいないもの）
      sp:0,need:UPCFG.first,lv:0,up:{},M:null,offer:null,echoes:[],judgeT:0,ru:mulberry32(hash32(seed^0x3C6EF372^Math.imul(P.rewinds+1,0x9E3779B1))),rk:mulberry32(hash32(seed^0x1B873593)),
-     loot:[],kills:0,idx:0,acc:0,rs,rc,nextWave:30,nextElite:CFG.eliteEvery*K.elite,bossOut:false,guardT:0,hasteT:0,lineY:0,
+     loot:[],kills:0,idx:0,acc:0,rs,rc,nextWave:30,nextElite:CFG.eliteEvery*K.elite,bossOut:false,lineY:0,zones:[],
      enemies:[],shots:[],impacts:[],sel:null,slots:[],queue:[],
      allies:P.members.map((m,i)=>{const d=CHARS[m.id],g=gearStats(m),max=d.hp*(1+g.hp/100);return{m,d,g,tags:g.tags,M:null,rg:1,sk:1,slot:i,x:0,y:0,animHit:HIT_AT,hp:m.collapsed?0:max*m.hpR,max,alive:!m.collapsed,deadBy:m.collapsed?'mad':null,cdT:0.3+i*0.1,animT:-1,animDur:0.4,pend:null,lunge:0,hitT:0,ph:i*1.7}})};
   recalc();
@@ -1832,7 +1833,6 @@ function hurt(e,dmg,col,crit,quiet,who,kind){
 const CSSGOLD='#ffe6a8';
 function hurtAlly(a,dmg){
   if(!a.alive||mode!=='battle')return;
-  if(B.guardT>0)dmg*=0.3;
   dmg*=100/(100+a.g.dfn); // 防具のDFN
   B.stat[a.d.id].taken+=dmg;a.hp-=dmg;a.hitT=0.18;
   if(a.hp<=0){
@@ -1957,11 +1957,12 @@ function useCard(si,x,y){
   return true;
 }
 function impact(c,x,y,k){
-  const ow=B.allies.find(o=>o.d.id===c.owner),r=(c.r||0)*B.M.skR,hh=(c.hh||0)*B.M.skR,dmg=c.dmg*B.M.skDmg*k*(ow?ow.sk:1);
+  const ow=B.allies.find(o=>o.d.id===c.owner),r=(c.r||0)*B.M.skR,hh=(c.hh||0)*B.M.skR,hw=(c.hw||0)*B.M.skR,dmg=c.dmg*B.M.skDmg*k*(ow?ow.sk:1);
   for(const e of B.enemies){
     if(e.dead)continue;
     const dx=e.x-x,dy=e.y-16-y;
     if(c.shape==='row'){if(Math.abs(dy)>hh+e.d.r*e.sc)continue}
+    else if(c.shape==='col'){if(Math.abs(dx)>hw+e.d.r*e.sc||e.y>B.lineY+8)continue}
     else{const rr=r+e.d.r*e.sc;if(dx*dx+dy*dy>rr*rr)continue}
     if(c.slow)e.slowT=Math.max(e.slowT,c.slow);
     if(c.freeze)e.frzT=Math.max(e.frzT,c.freeze*(e.elite?0.5:1));
@@ -1969,25 +1970,23 @@ function impact(c,x,y,k){
     hurt(e,dmg,c.pal[1],false,false,c.owner,'skill');
   }
   if(c.healFlat)for(const a of B.allies)if(a.alive){a.hp=Math.min(a.max,a.hp+c.healFlat*k);fxSpark(a.x,a.y-64,'#bff0c0',6)}
-  if(c.shape==='row')fxRow(y,hh,c.pal);else fxExplosion(x,y,r,c.pal);
+  if(c.zone)B.zones.push({x,hw,t:c.zone,life:c.zone,tick:0.5,dps:c.zdps*B.M.skDmg*k*(ow?ow.sk:1),c});
+  if(c.shape==='row')fxRow(y,hh,c.pal);else if(c.shape==='col')fxCol(x,hw,c.pal);else fxExplosion(x,y,r,c.pal);
   if(c.freeze){const hits=[];for(const e of B.enemies)if(!e.dead&&e.frzT>0&&Math.hypot(e.x-x,e.y-16-y)<=r+e.d.r*e.sc)hits.push(e);fxSkillTex(c,x,y,r,hh,hits)}
   else fxSkillTex(c,x,y,r,hh,null);
 }
 function castInstant(c,a){
   const ex=1+0.5*B.M.echo; // 二重詠唱：即時スキルは効果が1.5倍ずつ伸びる
-  if(c.guard){
-    B.guardT=c.guard*ex;
-    for(const e of B.enemies){if(!e.dead&&e.y>B.lineY-150)e.y-=c.knockLine*(e.elite?0.3:1)}
-    FX.sh.push({k:'ring',x:a.x,y:B.lineY,r0:20,r1:300,t:0,life:0.5,col:c.pal[1],w:6},{k:'ring',x:a.x,y:B.lineY,r0:10,r1:200,t:0,life:0.7,col:c.pal[0],w:2});
-    FX.shake=Math.min(16,FX.shake+9);
-  }
-  if(c.haste){
-    B.hasteT=c.haste*ex;
-    for(const o of B.allies)if(o.alive){
-      FX.sh.push({k:'ring',x:o.x,y:o.y-40,r0:8,r1:70,t:0,life:0.5,col:c.pal[1],w:4});
-      for(let i=0;i<18;i++)FX.parts.push({x:o.x+(Math.random()-0.5)*44,y:o.y-Math.random()*20,vx:0,vy:-70-Math.random()*90,t:0,life:0.5+Math.random()*0.5,size:2+Math.random()*2.5,col:c.pal[i%2],drag:0.6,grav:0});
+  if(c.band){ // 一閃斬月：防衛線の前の帯を薙ぎ払い、押し返す（二重詠唱で威力が伸びる）
+    const top=B.lineY-c.band,dmg=c.dmg*B.M.skDmg*ex*a.sk;
+    for(const e of B.enemies){
+      if(e.dead||e.y<top)continue;
+      e.y-=c.push*(e.d.boss?0.1:e.elite?0.3:1);e.knT=Math.max(e.knT,0.5);
+      hurt(e,dmg,c.pal[1],false,false,c.owner,'skill');
     }
-    FX.shake=Math.min(16,FX.shake+5);
+    fxRow(B.lineY-c.band*0.5,c.band*0.5,c.pal);
+    fxTex({n:'slash_a',col:c.pal[1],x:W/2,y:B.lineY-c.band*0.5,w:W*1.3,rot:1.0,sq:0.6,life:0.45,s0:0.85,s1:1.1,fi:0.05,fo:1.4});
+    FX.sh.push({k:'ring',x:a.x,y:B.lineY,r0:20,r1:W,t:0,life:0.45,col:c.pal[1],w:6});
   }
   if(c.healPct){
     for(const o of B.allies)if(o.alive){
@@ -1999,7 +1998,7 @@ function castInstant(c,a){
 }
 
 function step(dt){
-  B.t+=dt;if(B.guardT>0)B.guardT-=dt;if(B.hasteT>0)B.hasteT-=dt;
+  B.t+=dt;
   spawner(dt);
   for(const a of B.allies){
     if(a.hitT>0)a.hitT-=dt;
@@ -2019,7 +2018,7 @@ function step(dt){
       }
     }
     else if(a.cdT<=0){let tg=pickTarget(a),far=false;if(!tg&&a.d.far){tg=pickFar(a);far=!!tg}
-      if(tg){const cd=a.d.cd/m.spd*(B.hasteT>0?0.5:1)*(far?a.d.far.cd:1);a.cdT=cd;a.animT=0;a.animDur=Math.min(cd,0.45);a.animHit=HIT_AT;a.pend={t:a.animDur*HIT_AT,tg,far}}}
+      if(tg){const cd=a.d.cd/m.spd*(far?a.d.far.cd:1);a.cdT=cd;a.animT=0;a.animDur=Math.min(cd,0.45);a.animHit=HIT_AT;a.pend={t:a.animDur*HIT_AT,tg,far}}}
   }
   // 多重撃：斬撃や光線の「もう一振り」
   for(let i=B.echoes.length-1;i>=0;i--){
@@ -2031,6 +2030,7 @@ function step(dt){
   updEnemies(dt);if(mode!=='battle')return;
   updShots(dt);if(mode!=='battle')return;
   for(let i=B.impacts.length-1;i>=0;i--){const m=B.impacts[i];m.t-=dt;if(m.t<=0){B.impacts.splice(i,1);impact(m.c,m.x,m.y,m.k)}}
+  updZones(dt);if(mode!=='battle')return;
   for(const s of B.slots){if(s.card)continue;if(s.refill>0)s.refill-=dt;if(s.refill<=0&&B.queue.length)s.card=B.queue.shift()}
   let w=0;for(const e of B.enemies)if(!e.dead)B.enemies[w++]=e;B.enemies.length=w;
   if(B.t>=B.dur){win();return}
@@ -2386,6 +2386,38 @@ function fxRow(y,hh,pal){
   for(let i=0;i<24;i++)addPart({x:Math.random()*W,y:y+(Math.random()-0.5)*hh*1.6,vx:(Math.random()-0.5)*20,vy:-25-Math.random()*50,t:0,life:0.8+Math.random()*1.1,size:1.5+Math.random()*2,col:pal[1],drag:0.5,grav:0});
   FX.shake=Math.min(16,FX.shake+9);
 }
+// 乾坤一擲の地割れ：0.5秒ごとに、割れ目の上にいる敵を焼き、足を止める（鈍足）
+function updZones(dt){
+  for(let i=B.zones.length-1;i>=0;i--){
+    const z=B.zones[i];z.t-=dt;z.tick-=dt;
+    if(z.tick<=0){z.tick+=0.5;
+      for(const e of B.enemies){if(e.dead||e.y>B.lineY+8||Math.abs(e.x-z.x)>z.hw+e.d.r*e.sc)continue;
+        e.slowT=Math.max(e.slowT,0.6);hurt(e,z.dps*0.5,z.c.pal[1],false,true,z.c.owner,'skill')}
+      for(let k=0;k<6;k++)addPart({x:z.x+(Math.random()-0.5)*z.hw*1.4,y:Math.random()*B.lineY,vx:0,vy:-40-Math.random()*60,t:0,life:0.5+Math.random()*0.4,size:2+Math.random()*2,col:z.c.pal[1],drag:0.5,grav:0})}
+    if(z.t<=0)B.zones.splice(i,1);
+  }
+}
+function drawZone(g,z,T){
+  const a=Math.min(1,z.t/0.4,(z.life-z.t)/0.12+0.3),y1=B.lineY;
+  g.save();g.globalAlpha=a*0.32;
+  const gr=g.createLinearGradient(z.x-z.hw,0,z.x+z.hw,0);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(0.5,z.c.pal[2]);gr.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=gr;g.fillRect(z.x-z.hw,0,z.hw*2,y1);
+  g.globalCompositeOperation='lighter';g.lineJoin='round';
+  for(let p=0;p<2;p++){ // ジグザグの割れ目（光る芯＋縁）
+    g.globalAlpha=a*(p?0.95:0.5)*(0.8+Math.sin(T*16+z.x)*0.2);g.strokeStyle=p?'#fff3d6':z.c.pal[1];g.lineWidth=p?2:7;
+    g.beginPath();for(let yy=0;yy<=y1;yy+=18){const off=Math.sin(yy*0.21+z.x)*z.hw*0.35;yy?g.lineTo(z.x+off,yy):g.moveTo(z.x+off,yy)}g.stroke();
+  }
+  g.restore();
+}
+function fxCol(x,hw,pal){
+  const y1=B.lineY;
+  FX.sh.push({k:'beam',x,y:y1,dx:0,dy:-1,len:y1+20,t:0,life:0.42,col:pal[1],w:hw*1.7});
+  FX.sh.push({k:'beam',x,y:y1,dx:0,dy:-1,len:y1+20,t:0,life:0.26,col:pal[0],w:hw*0.9});
+  FX.sh.push({k:'flash',x,y:y1*0.5,r:y1*0.6,t:0,life:0.22,col:pal[1]});
+  for(let i=0;i<4;i++)fxTex({n:'crack',ly:'floor',x:x+(Math.random()-0.5)*hw*0.4,y:y1*(0.15+i*0.25),w:hw*3.2,sq:0.7,life:2.4,s0:0.7,s1:1,rot:Math.PI/2+(Math.random()-0.5)*0.4,fi:0.03,fo:3});
+  for(let i=0;i<110;i++)addPart({x:x+(Math.random()-0.5)*hw*1.6,y:Math.random()*y1,vx:(Math.random()-0.5)*260,vy:-60-Math.random()*240,t:0,life:0.3+Math.random()*0.6,size:2+Math.random()*3,col:pal[i%4===0?0:i%3===0?2:1],drag:2.5,grav:200})
+  FX.shake=Math.min(16,FX.shake+11);
+}
 function fxJudge(){
   FX.sh.push({k:'flash',x:W/2,y:H*0.4,r:W*1.4,t:0,life:0.55,col:'#c22a2a'});
   FX.sh.push({k:'ring',x:W/2,y:B.lineY,r0:20,r1:H,t:0,life:0.7,col:'#ff5a4a',w:8});
@@ -2544,6 +2576,7 @@ function render(T){
   g.save();
   if(FX.shake>0.3)g.translate((Math.random()-0.5)*FX.shake,(Math.random()-0.5)*FX.shake);
   for(const s of FX.sh)if(s.k==='decal'){g.globalAlpha=(1-s.t/s.life)*0.5;g.fillStyle=s.col;g.beginPath();g.ellipse(s.x,s.y,s.r*0.9,s.r*(s.flat||0.6),0,0,TAU);g.fill()}else if(s.k==='tex'&&s.ly==='floor')drawTex(g,s);
+  for(const z of B.zones)drawZone(g,z,T);
   g.globalAlpha=1;
   const list=B.enemies.slice().sort((a,b)=>a.y-b.y);
   for(const e of list)if(!e.dead)drawEnemy(g,e,T);
@@ -2552,8 +2585,6 @@ function render(T){
     g.save();g.globalAlpha=1-u;g.translate(o.x,o.y+u*10);blit(g,set,f,o.h);g.globalCompositeOperation='lighter';g.globalAlpha=(1-u)*0.45;blit(g,set,f,o.h);g.restore();
   }
   for(const s of FX.sh)if(s.k==='tex'&&s.ly==='top')drawTex(g,s);
-  if(B.guardT>0){const a=Math.min(1,B.guardT)*(0.55+Math.sin(T*9)*0.15);g.strokeStyle='rgba(159,196,232,'+a+')';g.lineWidth=4;g.beginPath();g.moveTo(0,B.lineY-6);g.quadraticCurveTo(W/2,B.lineY-22,W,B.lineY-6);g.stroke()}
-  if(B.hasteT>0){const al=Math.min(1,B.hasteT)*(0.5+Math.sin(T*14)*0.2);g.strokeStyle='rgba(127,224,255,'+al+')';g.lineWidth=2;for(const a of B.allies)if(a.alive){g.beginPath();g.ellipse(a.x,a.y,30+Math.sin(T*10)*2,9,0,0,TAU);g.stroke()}}
   for(const a of B.allies)drawAlly(g,a,T);
   if(tuning)drawTunePreview(g,T);
   // 加算合成の光もの
@@ -2588,9 +2619,10 @@ function render(T){
   for(const f of FX.floats){g.globalAlpha=1-f.t/0.7;g.font='700 '+f.size+'px '+FONT;g.fillStyle='#000';g.fillText(f.txt,f.x+1,f.y+1);g.fillStyle=f.col;g.fillText(f.txt,f.x,f.y)}
   g.globalAlpha=1;
   if(aim.on&&B.sel!=null&&B.slots[B.sel].card){
-    const c0=B.slots[B.sel].card,c={shape:c0.shape,pal:c0.pal,r:(c0.r||0)*B.M.skR,hh:(c0.hh||0)*B.M.skR}; // 爆心拡大を照準にも反映
+    const c0=B.slots[B.sel].card,c={shape:c0.shape,pal:c0.pal,r:(c0.r||0)*B.M.skR,hh:(c0.hh||0)*B.M.skR,hw:(c0.hw||0)*B.M.skR}; // 爆心拡大を照準にも反映
     g.fillStyle=c.pal[1];g.strokeStyle=c.pal[0];g.lineWidth=1.5;g.setLineDash([8,6]);g.lineDashOffset=-T*40;
     if(c.shape==='row'){g.globalAlpha=0.16;g.fillRect(0,aim.y-c.hh,W,c.hh*2);g.globalAlpha=0.95;g.beginPath();g.moveTo(0,aim.y-c.hh);g.lineTo(W,aim.y-c.hh);g.moveTo(0,aim.y+c.hh);g.lineTo(W,aim.y+c.hh);g.stroke()}
+    else if(c.shape==='col'){g.globalAlpha=0.16;g.fillRect(aim.x-c.hw,0,c.hw*2,B.lineY);g.globalAlpha=0.95;g.beginPath();g.moveTo(aim.x-c.hw,0);g.lineTo(aim.x-c.hw,B.lineY);g.moveTo(aim.x+c.hw,0);g.lineTo(aim.x+c.hw,B.lineY);g.stroke()}
     else{g.globalAlpha=0.14;g.beginPath();g.arc(aim.x,aim.y,c.r,0,TAU);g.fill();g.globalAlpha=0.95;g.beginPath();g.arc(aim.x,aim.y,c.r,0,TAU);g.stroke()}
     g.setLineDash([]);
     g.beginPath();g.moveTo(aim.x-9,aim.y);g.lineTo(aim.x+9,aim.y);g.moveTo(aim.x,aim.y-9);g.lineTo(aim.x,aim.y+9);g.stroke();g.globalAlpha=1;
@@ -3010,7 +3042,7 @@ function syncDOM(){
   if(sig!==handSig){
     handSig=sig;elHand.classList.toggle('sk',SKF);elHand.classList.remove('dest');
     elHand.innerHTML=B.slots.map((s,i)=>{
-      const kd=c=>c.kind!=='target'?'即時':c.shape==='row'?'横一列':'範囲';
+      const kd=c=>c.kind!=='target'?'即時':c.shape==='row'?'横一列':c.shape==='col'?'縦一列':'範囲';
       if(SKF){ // 羊皮紙の札
         if(!s.card)return'<div class="card back" data-i="'+i+'"><span class="ar"><span class="fill"></span></span><img class="fr" alt="" draggable="false" src="'+UI.card_frame+'"><span class="ki">'+(B.queue.length||s.refill>0?'装填中':'札なし')+'</span></div>';
         const c=s.card,art=UI['card_'+c.owner];
