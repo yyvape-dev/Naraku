@@ -830,7 +830,7 @@ img.frm{display:block;width:100%;height:100%}
       <div class="trow" data-k="s"><span class="tl">大きさ</span><button class="step" data-d="-1" aria-label="小さく">−</button><input type="range" min="50" max="200" step="1" aria-label="大きさ"><button class="step" data-d="1" aria-label="大きく">＋</button><span class="tv"></span></div>
       <div class="trow" data-k="x"><span class="tl">左右</span><button class="step" data-d="-1" aria-label="左へ">−</button><input type="range" min="-60" max="60" step="1" aria-label="左右"><button class="step" data-d="1" aria-label="右へ">＋</button><span class="tv"></span></div>
       <div class="trow" data-k="y"><span class="tl">上下</span><button class="step" data-d="-1" aria-label="上へ">−</button><input type="range" min="-60" max="60" step="1" aria-label="上下"><button class="step" data-d="1" aria-label="下へ">＋</button><span class="tv"></span></div>
-      <div class="trow"><input id="tuneCode" readonly aria-label="調整コード"><button class="tb" id="tuneCopy">コピー</button><button class="tb" id="tuneClose">閉じる</button></div>
+      <div class="trow"><input id="tuneCode" readonly aria-label="調整コード"><button class="tb" id="tuneReset">初期値</button><button class="tb" id="tuneCopy">コピー</button><button class="tb" id="tuneClose">閉じる</button></div>
     </div>
   </div>
   <div id="lvup"><div class="lvh"><small>ソウルが満ちた</small><b id="lvTitle">魂の昇華</b></div><div id="lvBuild"></div><div id="lvCards"></div></div>
@@ -1512,6 +1512,15 @@ const EMBED=/*__EMBED_START__*/{"beast":{"cols":6,"cw":345,"ch":230,"ax":172.5,"
 /* 表示の微調整。s=大きさ(%) x,y=位置のずらし量。調整パネルの値をビルド時に固定値として差し込む */
 const TUNE=/*__TUNE_START__*/{"blue":{"s":94,"x":0,"y":0},"sister":{"s":106,"x":0,"y":0},"mage":{"s":101,"x":0,"y":0},"beast":{"s":87,"x":0,"y":0},"knight":{"s":89,"x":0,"y":0},"scorp":{"s":127,"x":0,"y":0}}/*__TUNE_END__*/;
 CHAR_ORDER.concat(Object.keys(ENEMIES)).forEach(k=>{TUNE[k]=Object.assign({s:100,x:0,y:0},TUNE[k]||{})});
+/* 調整パネルで変えた値はこの端末に覚えておく（焼き込んだ値と違う項目だけ）。見た目だけの値なので戦闘の結果は変わらない。
+   「初期値」で選んでいる対象を焼き込んだ値へ戻す */
+const TUNE_KEY='naraku_tune_v1',TUNE_BASE={};
+Object.keys(TUNE).forEach(k=>{TUNE_BASE[k]=Object.assign({},TUNE[k])});
+try{const o=JSON.parse(localStorage.getItem(TUNE_KEY)||'{}');if(o&&typeof o==='object')Object.keys(o).forEach(k=>{if(!TUNE[k]||!o[k])return;['s','x','y'].forEach(q=>{const v=+o[k][q];if(isFinite(v)&&o[k][q]!==undefined)TUNE[k][q]=v})})}catch(e){}
+function saveTune(){
+  const o={};Object.keys(TUNE).forEach(k=>{const d={};['s','x','y'].forEach(q=>{if(TUNE[k][q]!==TUNE_BASE[k][q])d[q]=TUNE[k][q]});if(Object.keys(d).length)o[k]=d});
+  try{if(Object.keys(o).length)localStorage.setItem(TUNE_KEY,JSON.stringify(o));else localStorage.removeItem(TUNE_KEY)}catch(e){}
+}
 /* 絵の差し替えの見比べ（残してある仕組み。候補が無いあいだは何もしない）。
    assets に <キャラ名>2.webp（例：sword2）を置いてビルドすると、そのキャラに「差し替え候補」ができ、調整パネルの「絵」の段で
    今の絵／新／新を6コマに間引いたもの を切り替えて、実戦で見比べられる（道具：tools/look.py add → promote か drop）。
@@ -4302,17 +4311,18 @@ function closeTune(){
   tuning=false;$('#cmd').classList.remove('tuning');
   paused=pausedBefore;setTxt($('#btnPause'),paused?'再開':'一時停止');
 }
-$('#tune').addEventListener('input',ev=>{const r=ev.target.closest('.trow[data-k]');if(r&&ev.target.type==='range'){TUNE[tuneKey][r.dataset.k]=+ev.target.value;syncTune()}});
+$('#tune').addEventListener('input',ev=>{const r=ev.target.closest('.trow[data-k]');if(r&&ev.target.type==='range'){TUNE[tuneKey][r.dataset.k]=+ev.target.value;saveTune();syncTune()}});
 $('#tune').addEventListener('click',ev=>{
   const lb=ev.target.closest('[data-look]');if(lb){setLook(tuneKey,lb.dataset.look);syncTune();return}
   const b=ev.target.closest('.step');if(!b)return;
   const r=b.closest('.trow'),inp=r.querySelector('input'),k=r.dataset.k;
-  TUNE[tuneKey][k]=clamp(TUNE[tuneKey][k]+(+b.dataset.d),+inp.min,+inp.max);syncTune();
+  TUNE[tuneKey][k]=clamp(TUNE[tuneKey][k]+(+b.dataset.d),+inp.min,+inp.max);saveTune();syncTune();
 });
 $('#tuneSel').addEventListener('change',ev=>{tuneKey=ev.target.value;syncTune()});
 $('#tuneAnim').addEventListener('change',ev=>{tuneAnim=ev.target.checked});
 $('#tuneMark').addEventListener('change',ev=>{CFG.showAnchor=ev.target.checked});
 $('#tuneClose').addEventListener('click',closeTune);
+$('#tuneReset').addEventListener('click',()=>{Object.assign(TUNE[tuneKey],TUNE_BASE[tuneKey]);saveTune();syncTune()});
 $('#tuneCopy').addEventListener('click',()=>{
   const el=$('#tuneCode'),ok=()=>setTxt($('#tuneCopy'),'コピー済み'),manual=()=>{el.focus();el.select();try{if(document.execCommand('copy'))ok();else setTxt($('#tuneCopy'),'長押しで選択')}catch(e){setTxt($('#tuneCopy'),'長押しで選択')}};
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(el.value).then(ok,manual);else manual();
