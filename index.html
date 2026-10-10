@@ -2220,6 +2220,24 @@ function pickFar(a){
   }
   return best;
 }
+// 飛ぶ斬撃の着弾（弾は描かない）：ラナ＝赤黒い主斬撃・衝撃・靄、アベニウス＝蒼い三日月・閃き・火花。素材が無ければ false
+function swLand(s){
+  const id=s.a&&s.a.d.id,x=s.tx,y=s.ty;
+  if(id==='sword'&&vtex('lana_slash')){const K=VFXK.sword;
+    FX.sh.push({k:'lv',n:'slash',x,y:y-2,w:66,rot:(Math.random()-0.5)*0.3,fx:Math.random()<0.5?-1:1,sw:0.2,t:0,life:0.26,a:0.95,my:-4});
+    FX.sh.push({k:'lv',n:'hit',x,y,w:52,rot:Math.random()*TAU,t:0,life:0.22});
+    FX.sh.push({k:'lv',n:'smoke',x,y:y-4,w:56,fx:Math.random()<0.5?-1:1,t:-0.08,life:0.45,a:0.7,my:-10});
+    FX.sh.push({k:'ring',x,y,r0:4,r1:24,w:2.2,col:K.ring,t:0,life:0.2});
+    dustBurst('streak',x,y,5,{v0:150,v1:280,l0:0.08,l1:0.1,p:{drag:6,w:1.3,len:9,c0:K.streak[0],c1:K.streak[1]}});
+    dustBurst('shard',x,y,4,{ang:-Math.PI/2,spread:2.4,v0:40,v1:120,l0:0.35,l1:0.25,spin:18,p:{grav:300,drag:1.4,w:1.6+Math.random()*1.6,c0:K.shard,c1:K.streak[0]}});return true}
+  if(id==='blue'&&vtex('blue_moon')){const K=VFXK.blue,ang=Math.atan2(y-(B.lineY-34),x-s.a.x);
+    FX.sh.push({k:'lv',n:'pop',tex:'blue_moon',x,y,rot:ang,w:58,t:0,life:0.24,s0:0.45,grow:0.06,hold:0.05,s1:0.2,a:0.9});
+    FX.sh.push({k:'lv',n:'pop',tex:'blue_hit',x,y,w:56,rot:Math.random()*TAU,t:0,life:0.22,s0:0.35,grow:0.05,hold:0.03,spin:0.6});
+    FX.sh.push({k:'lv',n:'smoke',tex:'blue_spark',add:1,x,y,w:64,rot:Math.random()*TAU,fx:Math.random()<0.5?-1:1,t:-0.02,life:0.4,a:0.9,my:-8});
+    FX.sh.push({k:'ring',x,y,r0:4,r1:24,w:2,col:K.ring,t:0,life:0.2});
+    dustBurst('streak',x,y,5,{ang,spread:1.6,v0:150,v1:300,l0:0.08,l1:0.1,p:{drag:5,w:1.3,len:9,c0:K.streak[0],c1:K.streak[1]}});return true}
+  return false;
+}
 function farShot(a,tg){
   const f=a.d.far;
   B.shots.push({from:1,x:a.x,y:B.lineY-34,tg,tx:tg.x,ty:tg.y-18,spd:f.spd,a,k:f.k,chain:0,seen:[],col:f.col,sw:f.tex});
@@ -2407,7 +2425,7 @@ function updShots(dt){
         dustBurst('streak',s.tx,s.ty,3,{ang:-Math.PI/2,spread:1.6,v0:90,v1:180,l0:0.08,l1:0.08,p:{drag:6,w:1,len:6,c0:K.streak[0],c1:K.streak[1]}})}
       if(s.from&&!foxB&&!sisB){if(s.a&&s.a.d.id==='sister')fxTex({n:'pillar',x:s.tx,y:s.ty+16,w:30,ay:0.93,life:0.32,vy0:0.2,a:0.8,fi:0.06,fo:1.5});
         fxTex({n:'spark',col:s.col,x:s.tx,y:s.ty,w:26,life:0.18,s0:0.6,s1:1.1,rot:Math.random()*TAU,fi:0.05,fo:1.4});
-        if(s.sw)fxTex({n:s.sw,col:s.col,x:s.tx,y:s.ty,w:52,rot:-2.36+(Math.random()-0.5)*0.5,fx:Math.random()<0.5?-1:1,life:0.22,s0:0.8,s1:1.05,fi:0.08,fo:1.6})}
+        if(s.sw&&!swLand(s))fxTex({n:s.sw,col:s.col,x:s.tx,y:s.ty,w:52,rot:-2.36+(Math.random()-0.5)*0.5,fx:Math.random()<0.5?-1:1,life:0.22,s0:0.8,s1:1.05,fi:0.08,fo:1.6})}
       if(s.from){
         let next=null;
         if(s.tg&&!s.tg.dead){
@@ -3142,6 +3160,7 @@ function render(T){
   // 加算合成の光もの
   g.globalCompositeOperation='lighter';
   for(const s of B.shots){
+    if(s.from&&s.a&&(s.sw&&VT.lana_slash&&VT.blue_moon||s.a.d.id==='fox'&&VT.fox_burst))continue; // ユーザーの判断（2026-10-10）：ラナ・アベニウスの飛ぶ斬撃とユズナミキの狐火は弾を描かず、着弾のエフェクトだけ（弾の移動と命中はそのまま）
     if(s.sw){ // 飛ぶ斬撃：進む向きに寝かせた三日月の光。素材が無ければ弧を描く
       const ang=Math.atan2(s.ty-s.y,s.tx-s.x),im=vsmall(s.sw,s.col,30,30);g.save();g.translate(s.x,s.y);g.rotate(ang+Math.PI*0.75);g.globalAlpha=1;
       if(im)g.drawImage(im,-15,-15,30,30);else{g.strokeStyle=s.col;g.lineWidth=2.5;g.beginPath();g.arc(0,0,11,-1.2,1.2);g.stroke()}
