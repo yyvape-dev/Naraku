@@ -1484,15 +1484,9 @@ function drawBlueBody(g,a,lk,h,ox,oy){
 const SISV={ox:237,oy:691,S:3,
   thread:{tex:'sister_thread',f0:0.2,f1:2.6,out0:4.0,out1:5.2,p0:[60,160],p1:[161,65],a:0.6},
   wind:{tex:'sister_wind',p0:[92,262],p1:[168,56],life:0.6,a:0.55},
-  aura:{col:'#ffc860',k0:0.5,peak:5.0,k1:10.5,rim:0.12,glow:0.38}, // 体の発光：0.5コマ目から強まり、放つ5コマ目で最大、10.5コマ目までに消える
+  aura:{at:[96,88],r:0.2,a:0.32,k0:0.5,peak:5.0,k1:10.5}, // 胸（背中側の胸の高さ）を中心にしたほのかな発光：0.5コマ目から強まり、放つ5コマ目で最大、10.5コマ目までに消える。r＝身長に対する半径
   palm:[[1,148,82],[2,158,66],[3,160,62],[4,166,58],[5,165,58],[6,166,59],[7,158,65],[8,148,81]],
   orb0:2.0,wind0:4.0,rel:5.0,feathers:4};
-const SISG=new WeakMap(); // コマの絵 → {s:染めた写し, b:ぼかした写し, pad}（1回だけ作って使い回す）
-function sisGlow(c,col){let o=SISG.get(c);if(o)return o;const W=c.width,H=c.height,pad=Math.round(Math.max(W,H)*0.08);
-  const s=document.createElement('canvas');s.width=W;s.height=H;let x=s.getContext('2d');x.drawImage(c,0,0);x.globalCompositeOperation='source-in';x.fillStyle=col;x.fillRect(0,0,W,H);
-  const q=document.createElement('canvas');q.width=Math.max(4,(W+pad*2)>>3);q.height=Math.max(4,(H+pad*2)>>3);x=q.getContext('2d');x.drawImage(s,pad/8,pad/8,W/8,H/8);
-  const b=document.createElement('canvas');b.width=(W+pad*2)>>1;b.height=(H+pad*2)>>1;x=b.getContext('2d');x.imageSmoothingEnabled=true;x.drawImage(q,0,0,b.width,b.height);
-  o={s,b,pad};SISG.set(c,o);return o}
 const SISS=new WeakMap(); // 味方ごとの見た目だけの状態（掌の画面位置・この攻撃で風と放ちを出したか）。戦闘の状態には入れない
 function drawSisterBody(g,a,lk,h,ox,oy){
   if(a.d.id!=='sister'||lk.set!==SPR.ally.sister||a.animT<0||lk.seq.length!==12)return;
@@ -1500,12 +1494,11 @@ function drawSisterBody(g,a,lk,h,ox,oy){
   const P=q=>[ox+(q[0]-fr.ax)*sc,oy+(q[1]-fr.ay)*sc],pm=P(keyAt(V.palm,f));
   let st=SISS.get(a);if(!st){st={b:0};SISS.set(a,st)}st.pm=pm;if(f<V.wind0-1)st.b=0;
   const x0=ox+(-V.ox/V.S-fr.ax)*sc,y0=oy+(-V.oy/V.S-fr.ay)*sc,w=1024/V.S*sc,hh=1536/V.S*sc;
-  // 体の発光：表示中のコマの形を金色に染めた写し（縁）と、ぼかした写し（にじみ）を加算で重ねる
+  // 胸のほのかな発光（放射状のにじみを加算）
   const AU=V.aura,ak=f<AU.k0?0:f<AU.peak?Math.pow((f-AU.k0)/(AU.peak-AU.k0),1.5):Math.max(0,1-(f-AU.peak)/(AU.k1-AU.peak));
-  if(ak>0.01){const fc=lk.set.frames[lk.seq[Math.floor(f)]%lk.set.frames.length],gs=sisGlow(fc.c,AU.col),ax=CFG.fix?fc.ax:fc.rax,ay=CFG.fix?fc.ay:fc.ray,pl=0.85+0.15*Math.sin(VFXT*18);
-    g.save();g.globalCompositeOperation='lighter';
-    g.globalAlpha=ak*AU.glow*pl;g.drawImage(gs.b,ox-ax*sc-gs.pad*sc,oy-ay*sc-gs.pad*sc,(fc.c.width+gs.pad*2)*sc,(fc.c.height+gs.pad*2)*sc);
-    g.globalAlpha=ak*AU.rim*pl;g.drawImage(gs.s,ox-ax*sc,oy-ay*sc,fc.c.width*sc,fc.c.height*sc);g.restore()}
+  if(ak>0.01){const c=P(AU.at),r=h*AU.r*(0.95+0.05*Math.sin(VFXT*18)),gr=g.createRadialGradient(c[0],c[1],0,c[0],c[1],r);
+    gr.addColorStop(0,'rgba(255,246,214,1)');gr.addColorStop(0.35,'rgba(255,214,120,0.55)');gr.addColorStop(1,'rgba(255,200,96,0)');
+    g.save();g.globalCompositeOperation='lighter';g.globalAlpha=ak*AU.a;g.fillStyle=gr;g.beginPath();g.arc(c[0],c[1],r,0,TAU);g.fill();g.restore()}
   // 光の糸：線の向きに、なぞって現れる
   const t=V.thread,im=vtex(t.tex);
   if(im&&f>=t.f0&&f<t.out1){
@@ -3066,7 +3059,8 @@ function render(T){
       g.globalAlpha=1;g.drawImage(fb,-5.5,-6,11,31);g.strokeStyle='#fff1cf';g.lineWidth=1.6;g.lineCap='round';g.beginPath();g.moveTo(0,-10);g.lineTo(0,0);g.stroke();g.restore();continue;
     }
     const sb=id==='sister'?vtex('sister_bolt'):null;
-    if(sb){ // 風をまとった光の弾：先頭（絵の右端）を進む向きへ。後ろに掌からの細い光の糸（最大40）と光の粒
+    if(id==='sister'&&VT.sister_pillar)continue; // ユーザーの判断：飛ぶ光の球は描かず、着弾のエフェクトだけ見せる（弾の移動と命中はそのまま）
+    if(sb){ // 風をまとった光の弾（今は使わない。戻すときは上の行を消す）：先頭（絵の右端）を進む向きへ。後ろに掌からの細い光の糸（最大40）と光の粒
       const ang=Math.atan2(s.ty-s.y,s.tx-s.x),K=VFXK.sister,dd=Math.hypot(s.x-s.lx,s.y-s.ly),tl=Math.min(40,dd),cs=Math.cos(ang),sn=Math.sin(ang);
       if(tl>2){const bx=s.x-(s.x-s.lx)/dd*tl,by=s.y-(s.y-s.ly)/dd*tl,gr=g.createLinearGradient(bx,by,s.x,s.y);gr.addColorStop(0,'rgba(255,227,154,0)');gr.addColorStop(1,'rgba(255,250,228,0.8)');
         g.globalAlpha=1;g.strokeStyle=gr;g.lineWidth=1.3;g.lineCap='round';g.beginPath();g.moveTo(bx,by);g.lineTo(s.x,s.y);g.stroke()}
