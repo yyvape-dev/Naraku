@@ -30,3 +30,6 @@
 
 ## 制限
 テストURLは本番 `index.html` をiframeで読み込んで関数を差し替える方式。同一オリジン前提。GitHub Pagesの公開反映後、iPhone Safari動作は要確認。
+
+## 2026-10-11 修正
+初回の about:blank iframe をゲーム本体と誤認してエラー表示する不具合を修正。読み込み前は無視し、適用成功後に赤枠を消す。Canvasの三角錐状光柱は廃止し、既存の vfx_lanaU_t1/t3/t4 を横6分割して着弾地点別に表示、乱れた光の筋を加算する方式へ変更。床にも vfx_lanaU_f4 の横6分割を重ねて石材の質感を復元。URL /lana-v2.html 、JS /lana-v2.js?v=20261011b 。iPhone上での最終表示確認は未実施。
