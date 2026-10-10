@@ -1,0 +1,25 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>天地開闢 改善版</title><style>html,body{margin:0;height:100%;overflow:hidden;background:#070606}iframe{width:100%;height:100dvh;border:0}#tag{position:fixed;top:2px;left:2px;background:#4b1515;color:#ffe3cf;font:11px sans-serif;padding:3px 5px;pointer-events:none}#err{display:none;position:fixed;bottom:8px;left:5px;right:5px;color:white;background:#731919;padding:8px;font:12px sans-serif}</style></head><body><iframe id="game" src="./index.html"></iframe><span id="tag">天地開闢 改善版</span><div id="err"></div><script>
+document.getElementById('game').addEventListener('load',()=>{
+try{
+ const f=document.getElementById('game').contentWindow;
+ f.eval("LANA_U.f=[[0,0.20,0.35],[0.16,0.43,0.60],[0.38,0.86,1.06],[0.73,3.45,4.3]];LANA_U.t=[['t1',0,0.25,0.42],['t1',0.18,0.48,0.7],['t3',0.43,1.02,1.25],['t4',0.74,1.45,1.92]]");
+ const changes=[
+ ["ultLanaCol",[
+ ["FX.shake=Math.min(16,FX.shake+6);","FX.sh.push({k:'flash',x,y:y1*0.48,r:hw*1.10,t:0,life:0.16,col:'#ff2922'});FX.shake=Math.min(16,FX.shake+4);"]
+ ]],
+ ["drawLanaUlt",[
+ ["g.globalAlpha=a*0.92*pu;","g.globalAlpha=a*(i===3?0.72:0.92)*pu;"],
+ ["g.globalAlpha=a*0.22*pu;","g.globalAlpha=a*(i===3?0.075:0.24)*pu;"],
+ ["(i===1?1.08:1)+0.1*u","(i>=2?1.17:i===1?1.08:1)+0.17*u"],
+ ["g.globalAlpha=a*0.3;g.drawImage(im,x,y,w,h)","g.globalAlpha=a*(i>=2?0.40:0.3);g.drawImage(im,x,y,w,h)"],
+ ["}else if(layer==='aura'){","const burst=Math.max(0,1-Math.abs(t-0.84)/0.12);if(burst>0){g.globalCompositeOperation='screen';g.globalAlpha=0.68*burst;const grad=g.createRadialGradient(W/2,B.lineY*.45,0,W/2,B.lineY*.45,W*.72);grad.addColorStop(0,'#fff5ec');grad.addColorStop(.13,'#ff3c32');grad.addColorStop(1,'rgba(88,0,0,0)');g.fillStyle=grad;g.fillRect(0,0,W,B.lineY);}else{}\n  }else if(layer==='aura'){"]
+ ]]
+ ];
+ for(const [name,edits] of changes){
+  let src=f.eval(name+".toString()");
+  for(const [oldText,newText] of edits){if(!src.includes(oldText))throw Error(name+" の元コードが一致しません: "+oldText);src=src.replace(oldText,newText);}
+  f.eval(name+" = ("+src+")");
+ }
+}catch(e){const x=document.getElementById('err');x.textContent="改善パッチ失敗: "+e.message;x.style.display="block";console.error(e)}
+});
+</script></body></html>
