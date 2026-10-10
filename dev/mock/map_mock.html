@@ -1,0 +1,130 @@
+<!doctype html><meta charset="utf-8">
+<style>
+:root{--gold:#b39355;--gold-dim:#6e5a36;--gold-hi:#ffe6a8;--bone:#d8cdb4;--bone-dim:#8f866f;--mincho:"Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP","Noto Serif JP",serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;background:#000;font-family:var(--mincho);color:var(--bone);overflow:hidden}
+#app{position:relative;width:390px;height:844px;display:flex;flex-direction:column;background:#0c0a09}
+#board{position:relative;flex:1;min-height:0;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+#hud{position:absolute;left:0;right:0;top:0;padding:12px 16px 30px;background:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,0));display:flex;align-items:center;justify-content:space-between;font-size:10px;letter-spacing:.1em;color:var(--bone-dim);white-space:nowrap}
+#hud b{font-size:15px;font-weight:600;color:#fff3d6;letter-spacing:.04em;margin:0 3px;font-variant-numeric:tabular-nums}
+.lamp{display:flex;align-items:center;gap:7px}
+.flame{width:11px;height:15px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(circle at 50% 70%,#fff6d0,#ffb347 45%,#c2410c);box-shadow:0 0 10px #ff9a2e}
+.gauge{position:relative;width:64px;height:3px;background:rgba(255,255,255,.12)}
+.gauge i{position:absolute;left:0;top:0;bottom:0;width:70%;background:linear-gradient(90deg,#a8521a,#ffe2a0);box-shadow:0 0 6px #ffb347}
+.gauge s{position:absolute;top:-3px;width:1px;height:9px;background:var(--bone-dim)}
+.step{font-size:11px}
+#cmd{position:relative;border-top:1px solid var(--gold);padding:8px 8px 10px;background:linear-gradient(rgba(34,26,20,.42),rgba(6,5,4,.82)),url(../assets/ui_leather.webp) 0 0/176px 176px;box-shadow:inset 0 12px 18px -10px #000}
+#party{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.pt{display:flex;align-items:center;gap:7px;padding:3px 7px 3px 3px;background:rgba(8,6,5,.72);border:1px solid rgba(110,90,54,.7);border-radius:20px 3px 3px 20px}
+.pt img{width:30px;height:30px;border-radius:50%;object-fit:cover;object-position:50% 18%;border:1px solid var(--gold);flex:none}
+.pt .bars{flex:1;min-width:0}
+.pt .nm{font-size:9.5px;color:#fff3d6;white-space:nowrap;display:flex;justify-content:space-between}
+.pt .nm em{font-style:normal;color:#c79bff;font-size:9px}
+.pt .b{height:4px;background:#060504;margin-top:3px;position:relative}
+.pt .b i{position:absolute;left:0;top:0;bottom:0}
+.pt .hp i{background:linear-gradient(90deg,#7a1414,#d23a2e)}
+.pt .md i{background:linear-gradient(90deg,#4a2a80,#9a6fe0)}
+#hand{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.card{position:relative;height:98px;border:1px solid var(--gold-dim);border-top:3px solid var(--oc);border-radius:3px;background:linear-gradient(160deg,#2a211a,#120e0b);padding:7px 8px 6px;display:flex;flex-direction:column}
+.card.sel{transform:translateY(-8px);box-shadow:0 0 0 1px var(--gold-hi),0 8px 18px #000,0 0 22px rgba(255,207,106,.35)}
+.card .hd{display:flex;align-items:center;gap:7px}
+.card .em{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff3d6;background:radial-gradient(circle at 40% 35%,var(--oc),#0c0a09 75%);box-shadow:0 0 0 1.5px #c9a85a,0 0 0 3px #3a2a10}
+.card .nm{font-size:14px;font-weight:600;color:#fff3d6}
+.card .ds{font-size:10.5px;line-height:1.45;margin-top:6px}
+.card .nx{margin-top:auto;font-size:9px;color:var(--bone-dim);display:flex;gap:4px;align-items:center}
+.card .nx i{font-style:normal;width:16px;height:16px;border-radius:50%;border:1px solid var(--gold-dim);display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;color:var(--bone);background:#0c0a09}
+#ops{display:flex;gap:6px;margin-top:8px}
+#ops button{height:42px;font:inherit;color:var(--bone);background:#17120e;border:1px solid var(--gold-dim);border-radius:2px;padding:0 12px;font-size:13px}
+#ops .go{flex:1;border-color:var(--gold);background:linear-gradient(#3a2d1c,#1c150e);color:var(--gold-hi);font-size:15px;letter-spacing:.3em}
+</style>
+<div id="app">
+  <div id="board"><canvas id="cv"></canvas>
+    <div id="hud"><span class="lamp"><i class="flame"></i><span class="gauge"><i></i><s style="left:70%"></s><s style="left:30%"></s></span><b>70%</b>明瞭</span><span class="step">第<b>三</b>歩 ／ 全八歩</span><span>金<b>364</b>装備<b>7</b></span></div>
+  </div>
+  <div id="cmd">
+    <div id="party">
+      <div class="pt"><img src="../assets/face_fox.webp"><div class="bars"><div class="nm">ユズナミキ<em>狂 0</em></div><div class="b hp"><i style="width:82%"></i></div><div class="b md"><i style="width:0%"></i></div></div></div>
+      <div class="pt"><img src="../assets/face_sword.webp"><div class="bars"><div class="nm">ラナ<em>狂 15</em></div><div class="b hp"><i style="width:100%"></i></div><div class="b md"><i style="width:15%"></i></div></div></div>
+      <div class="pt"><img src="../assets/face_mage.webp"><div class="bars"><div class="nm">シェリ<em>狂 15</em></div><div class="b hp"><i style="width:46%"></i></div><div class="b md"><i style="width:15%"></i></div></div></div>
+    </div>
+    <div id="hand">
+      <div class="card sel" style="--oc:#8a8072"><span class="hd"><i class="em" style="font-style:normal">戦</i><span class="nm">戦闘</span></span><span class="ds">90秒の防衛戦</span><span class="nx">その先<i>火</i></span></div>
+      <div class="card" style="--oc:#c9a030"><span class="hd"><i class="em" style="font-style:normal">宝</i><span class="nm">宝箱</span></span><span class="ds">金・装備・油が手に入る</span><span class="nx">その先<i>火</i><i>戦</i></span></div>
+      <div class="card" style="--oc:#c2501e"><span class="hd"><i class="em" style="font-style:normal">強</i><span class="nm">強敵</span></span><span class="ds">大鬼が群れる90秒。装備を多く落とす</span><span class="nx">その先<i>戦</i></span></div>
+    </div>
+    <div id="ops"><button class="go">進む</button><button>街へ帰還</button></div>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('cv'),bd=document.getElementById('board'),W=390,H=bd.clientHeight,D=2;
+cv.width=W*D;cv.height=H*D;const g=cv.getContext('2d');g.scale(D,D);
+const TAU=Math.PI*2,FONT='"Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP","Noto Serif JP",serif';
+const load=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s});
+const COL={戦:'#6a6258',強:'#8a3418',宝:'#8a6a14',火:'#9a4a10',謎:'#55358a',営:'#1f6a44',主:'#7a1616'};
+function studs(a,b,mode){const dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy),n=Math.floor(L/11);
+  for(let i=3;i<n-2;i++){const x=a.x+dx*i/n,y=a.y+dy*i/n;
+    g.fillStyle='rgba(0,0,0,.6)';g.beginPath();g.arc(x+.6,y+1,mode==='sel'?3.4:2.6,0,TAU);g.fill();
+    if(mode==='sel'){g.shadowColor='#ffcf6a';g.shadowBlur=8}
+    g.fillStyle=mode==='sel'?'#ffe6a8':mode==='walk'?'#b39355':mode==='open'?'#d8cdb4':'rgba(216,205,180,.28)';
+    g.beginPath();g.arc(x,y,mode==='sel'?2.8:mode==='dim'?1.6:2.1,0,TAU);g.fill();g.shadowBlur=0}}
+function medal(x,y,r,ch,st){
+  g.fillStyle='rgba(0,0,0,.55)';g.beginPath();g.ellipse(x+2,y+6,r*1.02,r*.9,0,0,TAU);g.fill();
+  if(st==='sel'){g.shadowColor='#ffcf6a';g.shadowBlur=22}
+  let gr=g.createLinearGradient(x-r,y-r,x+r,y+r);gr.addColorStop(0,'#fbe9b0');gr.addColorStop(.45,'#a8853c');gr.addColorStop(.6,'#5a4116');gr.addColorStop(1,'#d9b86a');
+  g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();g.shadowBlur=0;
+  g.strokeStyle='#1a1206';g.lineWidth=1;g.beginPath();g.arc(x,y,r-4.5,0,TAU);g.stroke();
+  gr=g.createRadialGradient(x-r*.3,y-r*.35,2,x,y,r);gr.addColorStop(0,COL[ch]||'#444');gr.addColorStop(1,'#0a0807');
+  g.fillStyle=gr;g.beginPath();g.arc(x,y,r-5.5,0,TAU);g.fill();
+  for(let i=0;i<4;i++){const a=i*TAU/4+TAU/8;g.fillStyle='#2a1c08';g.beginPath();g.arc(x+Math.cos(a)*(r-2.4),y+Math.sin(a)*(r-2.4),1.3,0,TAU);g.fill()}
+  g.textAlign='center';g.textBaseline='middle';g.font='700 '+Math.round(r*.92)+'px '+FONT;
+  g.fillStyle='rgba(0,0,0,.7)';g.fillText(ch,x+1,y+2.5);g.fillStyle=st==='past'?'rgba(255,243,214,.45)':'#fff3d6';g.fillText(ch,x,y+1.2);
+  if(st==='past'){g.fillStyle='rgba(8,6,5,.45)';g.beginPath();g.arc(x,y,r,0,TAU);g.fill()}
+  g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=1;g.beginPath();g.arc(x,y,r-.8,Math.PI*1.1,Math.PI*1.6);g.stroke();
+}
+function piece(x,y,img,col,s){ // 台座つきの駒（仮：顔絵をはめた立て札型。本番は立像の絵に差し替え）
+  const w=30*s,h=46*s;
+  g.fillStyle='rgba(0,0,0,.6)';g.beginPath();g.ellipse(x+3,y+4,w*.62,w*.24,0,0,TAU);g.fill();
+  let gr=g.createLinearGradient(x-w*.6,0,x+w*.6,0);gr.addColorStop(0,'#3a2a10');gr.addColorStop(.5,'#e6c878');gr.addColorStop(1,'#3a2a10');
+  g.fillStyle=gr;g.beginPath();g.ellipse(x,y,w*.6,w*.23,0,0,TAU);g.fill();
+  g.fillStyle='#120d08';g.beginPath();g.ellipse(x,y-2.5*s,w*.52,w*.19,0,0,TAU);g.fill();
+  g.save();g.beginPath();g.moveTo(x-w/2,y-3*s);g.lineTo(x-w/2,y-h+w/2);g.arc(x,y-h+w/2,w/2,Math.PI,0);g.lineTo(x+w/2,y-3*s);g.closePath();
+  g.save();g.clip();const k=w/img.width*1.15,ih=img.height*k;g.drawImage(img,x-img.width*k/2,y-h-2*s,img.width*k,ih);
+  gr=g.createLinearGradient(0,y-h*.4,0,y);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,.75)');g.fillStyle=gr;g.fillRect(x-w/2,y-h,w,h);g.restore();
+  g.lineWidth=1.6;g.strokeStyle='#e6c878';g.stroke();g.lineWidth=.8;g.strokeStyle='#2a1c08';g.stroke();g.restore();
+  g.fillStyle=col;g.beginPath();g.moveTo(x,y-6*s);g.lineTo(x+3.4*s,y-2.4*s);g.lineTo(x,y+1.2*s);g.lineTo(x-3.4*s,y-2.4*s);g.closePath();g.fill();g.strokeStyle='#fff3d6';g.lineWidth=.6;g.stroke();
+}
+Promise.all(['bg_corridor','face_fox','face_sword','face_mage'].map(n=>load('../assets/'+n+'.webp'))).then(([bg,f1,f2,f3])=>{
+  // 盤面（仮：石床を暗く敷き、彫り込みの縁取りを重ねる。本番は外部AIの盤面絵）
+  const k=Math.max(W/bg.width,H/bg.height)*1.25;g.drawImage(bg,(W-bg.width*k)/2,(H-bg.height*k)/2,bg.width*k,bg.height*k);
+  g.fillStyle='rgba(10,7,5,.5)';g.fillRect(0,0,W,H);
+  let gr=g.createRadialGradient(W/2,40,10,W/2,40,260);gr.addColorStop(0,'rgba(120,20,24,.42)');gr.addColorStop(1,'rgba(120,20,24,0)');g.fillStyle=gr;g.fillRect(0,0,W,320);
+  g.strokeStyle='rgba(179,147,85,.1)';g.lineWidth=1;for(let i=1;i<=9;i++){g.beginPath();g.ellipse(W/2,30,i*48,i*30,0,0,TAU);g.stroke()}
+  g.strokeStyle='rgba(179,147,85,.5)';g.lineWidth=1;g.strokeRect(7.5,7.5,W-15,H-15);g.strokeStyle='rgba(179,147,85,.22)';g.strokeRect(11.5,11.5,W-23,H-23);
+  [[7.5,H-7.5],[W-7.5,H-7.5]].forEach(([x,y])=>{g.fillStyle='#b39355';g.beginPath();g.moveTo(x,y-6);g.lineTo(x+6,y);g.lineTo(x,y+6);g.lineTo(x-6,y);g.fill()});
+  const N={far:{x:195,y:66},a2:{x:118,y:176},b2:{x:268,y:168},a1:{x:72,y:318},b1:{x:196,y:296},c1:{x:320,y:322},cur:{x:196,y:452},prev:{x:104,y:568}};
+  studs(N.a2,N.far,'dim');studs(N.b2,N.far,'dim');
+  studs(N.a1,N.a2,'dim');studs(N.b1,N.a2,'dim');studs(N.b1,N.b2,'dim');studs(N.c1,N.b2,'dim');
+  studs(N.prev,N.cur,'walk');studs({x:150,y:650},N.prev,'walk');
+  studs(N.cur,N.a1,'sel');studs(N.cur,N.b1,'open');studs(N.cur,N.c1,'open');
+  g.fillStyle='rgba(216,205,180,.4)';g.beginPath();g.moveTo(N.far.x,N.far.y-10);g.lineTo(N.far.x+10,N.far.y);g.lineTo(N.far.x,N.far.y+10);g.lineTo(N.far.x-10,N.far.y);g.fill();
+  medal(N.a2.x,N.a2.y,22,'火');medal(N.b2.x,N.b2.y,22,'戦');
+  medal(N.a1.x,N.a1.y,28,'戦','sel');medal(N.b1.x,N.b1.y,28,'宝');medal(N.c1.x,N.c1.y,28,'強');
+  medal(N.prev.x,N.prev.y,24,'戦','past');medal(N.cur.x,N.cur.y,30,'謎','past');
+  // 選んだマスの名札
+  g.font='600 11px '+FONT;const t='戦闘 ・ 90秒',tw=g.measureText(t).width+18;
+  g.fillStyle='rgba(8,6,5,.86)';g.strokeStyle='#b39355';g.lineWidth=1;g.beginPath();g.rect(N.a1.x-tw/2,N.a1.y+35,tw,20);g.fill();g.stroke();
+  g.fillStyle='#ffe6a8';g.textAlign='center';g.textBaseline='middle';g.fillText(t,N.a1.x,N.a1.y+45.5);
+  // 闇と灯り
+  const f=document.createElement('canvas');f.width=W;f.height=H;const fg=f.getContext('2d');
+  fg.fillStyle='rgba(3,2,2,.84)';fg.fillRect(0,0,W,H);fg.globalCompositeOperation='destination-out';
+  gr=fg.createRadialGradient(N.cur.x,N.cur.y-40,60,N.cur.x,N.cur.y-40,330);gr.addColorStop(0,'rgba(0,0,0,1)');gr.addColorStop(.55,'rgba(0,0,0,.9)');gr.addColorStop(1,'rgba(0,0,0,0)');
+  fg.fillStyle=gr;fg.fillRect(0,0,W,H);
+  g.drawImage(f,0,0);
+  g.globalCompositeOperation='lighter';gr=g.createRadialGradient(N.cur.x,N.cur.y-20,0,N.cur.x,N.cur.y-20,190);gr.addColorStop(0,'rgba(255,170,70,.2)');gr.addColorStop(1,'rgba(255,170,70,0)');g.fillStyle=gr;g.fillRect(0,0,W,H);
+  g.globalCompositeOperation='source-over';
+  // 駒3体
+  piece(N.cur.x-27,N.cur.y-2,f1,'#e0913a',1);piece(N.cur.x+27,N.cur.y-2,f3,'#a57be0',1);piece(N.cur.x,N.cur.y+12,f2,'#b9c2cc',1.14);
+  document.title='ready';
+});
+</script>
