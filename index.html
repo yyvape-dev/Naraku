@@ -1293,7 +1293,79 @@ function drawSwing(g,a,lk,h,ox,oy){
       texTri(g,im,a0[0],a0[1],a1[0],a1[1],b0[0],b0[1],u0,0,u1,0,u0,th);
       texTri(g,im,a1[0],a1[1],b1[0],b1[1],b0[0],b0[1],u1,0,u1,th,u0,th)}
     g.restore()};
-  pass('source-over',0.95*al);pass('lighter',0.4*al);
+  // 発光：帯を外へ広げて、ぼかした赤い写しを加算で先に敷く
+  const gl=vglow(sw.tex,(VFXK[a.d.id]||{}).glow||'#ff2a1e');
+  if(gl){const ex=0.45,T0=T.map((p,i)=>[p[0]+(p[0]-I[i][0])*ex,p[1]+(p[1]-I[i][1])*ex]),I0=I.map((p,i)=>[p[0]-(T[i][0]-p[0])*ex,p[1]-(T[i][1]-p[1])*ex]);
+    g.save();g.globalCompositeOperation='lighter';g.globalAlpha=al*(0.55+0.15*Math.sin(VFXT*40));
+    for(let i=0;i<N;i++){const u0=gl.width*i/N,u1=gl.width*(i+1)/N,gh=gl.height;
+      texTri(g,gl,T0[i][0],T0[i][1],T0[i+1][0],T0[i+1][1],I0[i][0],I0[i][1],u0,0,u1,0,u0,gh);texTri(g,gl,T0[i+1][0],T0[i+1][1],I0[i+1][0],I0[i+1][1],I0[i][0],I0[i][1],u1,0,u1,gh,u0,gh)}
+    g.restore()}
+  pass('source-over',0.95*al);
+  // 流動：帯の中を、先端へ向かって流れる明るい写しを加算で重ねる
+  const mid=T.map((p,i)=>[(p[0]+I[i][0])/2,(p[1]+I[i][1])/2]),wd=i=>Math.hypot(T[Math.round(i*N)][0]-I[Math.round(i*N)][0],T[Math.round(i*N)][1]-I[Math.round(i*N)][1]);
+  drawRibbon(g,im,mid,wd,{op:'lighter',a:0.45*al,flow:3.2});
+  // 残滓：先端（剣先）から、振りの向きへ赤い筋と黒い欠片がこぼれる
+  if(f<sw.end&&f>sw.from+0.3){const h1=T[N],h0=T[N-2],vx=(h1[0]-h0[0]),vy=(h1[1]-h0[1]),k=VFXK[a.d.id]||VFXK.sword;
+    if(Math.random()<0.9*VFXK.k)dust({kind:'streak',x:h1[0],y:h1[1],vx:vx*9+(Math.random()-0.5)*60,vy:vy*9+(Math.random()-0.5)*60,life:0.16+Math.random()*0.14,w:1.6,len:7,drag:5,c0:k.streak[0],c1:k.streak[1]});
+    if(Math.random()<0.3*VFXK.k)dust({kind:'shard',x:h1[0],y:h1[1],vx:vx*5+(Math.random()-0.5)*40,vy:vy*5-20,grav:320,drag:1.5,life:0.35+Math.random()*0.25,w:1.8+Math.random()*1.6,vr:(Math.random()-0.5)*20,c0:k.shard,c1:k.streak[0]})}
+}
+/* ==== VFXキット（全キャラ共通。見た目だけ＝Math.random のみ。戦闘の結果は変えない） ====
+   止め絵のエフェクトに「同色の発光・飛び散る残滓・回転・流動」を乗せる部品。キャラごとの色と量は VFXK の表で決める
+   ・vglow(名前,色)：絵をぼかして染めた写し（読み込み後に1回だけ作って使い回す。毎フレームぼかさない＝スマホで軽い）
+   ・dust（残滓）：kind='streak'（進む向きに伸びた火の筋・加算）/'shard'（暗い欠片・普通に重ねる・回る）/'petal'（炎片・色が c0→c1 へ移る・加算）
+   ・drawRibbon：点の列に沿って絵を曲げて貼る帯。flow で絵を帯に沿って流し、wave で波打たせる
+   ・ring：命中点で広がる細い衝撃の輪（FX.sh の k:'ring' を流用） */
+const VFXK={
+  sword:{glow:'#ff2a1e',streak:['#ff3a2a','#ffb0a0'],shard:'#1a0506',ring:'#ff4a3a'},
+  fox:  {glow:'#ff5a8a',petal:['#ffd0c8','#ff4a6e','#7a2a8a'],ring:'#ff7aa0'},
+  dustMax:900,k:1   // k：残滓の量の倍率（重いときはここを下げる）
+};
+let VFXT=0; // 描画の時刻（render が入れる）
+function vglow(n,col){
+  const key='g'+n+col;let c=VC[key];if(c)return c;const im=vtex(n);if(!im)return null;
+  const w=im.width,h=im.height,q=document.createElement('canvas');q.width=Math.max(8,w>>3);q.height=Math.max(8,h>>3);
+  const x=q.getContext('2d');x.imageSmoothingEnabled=true;x.drawImage(im,0,0,q.width,q.height);
+  const q2=document.createElement('canvas');q2.width=Math.max(4,w>>4);q2.height=Math.max(4,h>>4);q2.getContext('2d').drawImage(q,0,0,q2.width,q2.height);
+  c=document.createElement('canvas');c.width=w>>1;c.height=h>>1;const y=c.getContext('2d');y.imageSmoothingEnabled=true;
+  y.drawImage(q2,0,0,c.width,c.height);y.globalAlpha=0.6;y.drawImage(q,0,0,c.width,c.height);y.globalAlpha=1;
+  y.globalCompositeOperation='source-in';y.fillStyle=col;y.fillRect(0,0,c.width,c.height);VC[key]=c;return c;
+}
+function dust(o){if(FX.dust.length>=VFXK.dustMax)return;FX.dust.push(Object.assign({t:0,vx:0,vy:0,drag:2,grav:0,rot:0,vr:0,w:2,len:6,ph:Math.random()*TAU},o))}
+// n個の残滓を (x,y) から、向き ang±spread、速さ v0〜v1 で散らす
+function dustBurst(kind,x,y,n,o){n=Math.round(n*VFXK.k);for(let i=0;i<n;i++){const an=dv(o.ang,0)+(Math.random()-0.5)*dv(o.spread,TAU),v=dv(o.v0,40)+Math.random()*(dv(o.v1,120)-dv(o.v0,40));
+  dust(Object.assign({kind,x:x+(Math.random()-0.5)*dv(o.jit,0),y:y+(Math.random()-0.5)*dv(o.jit,0),vx:Math.cos(an)*v,vy:Math.sin(an)*v+dv(o.up,0),life:dv(o.l0,0.25)+Math.random()*dv(o.l1,0.3),rot:Math.random()*TAU,vr:(Math.random()-0.5)*dv(o.spin,14)},o.p))}}
+function drawDust(g,pass){ // pass='normal'（暗い欠片）| 'add'（筋・炎片）
+  for(const d of FX.dust){
+    const u=d.t/d.life,a=(1-u)*(u<0.1?u/0.1:1);if(a<=0.01)continue;
+    if(d.kind==='shard'){if(pass!=='normal')continue;g.save();g.translate(d.x,d.y);g.rotate(d.rot);g.globalAlpha=a*0.95;g.fillStyle=d.c0;
+      const z=d.w*(1-u*0.4);g.beginPath();g.moveTo(-z,-z*0.4);g.lineTo(z*0.2,-z);g.lineTo(z,z*0.5);g.lineTo(-z*0.3,z*0.7);g.closePath();g.fill();
+      g.globalAlpha=a*0.7;g.strokeStyle=d.c1||'#ff3a2a';g.lineWidth=0.6;g.stroke();g.restore();continue}
+    if(pass!=='add')continue;
+    if(d.kind==='streak'){const sp=Math.hypot(d.vx,d.vy)||1,L=Math.min(d.len*2.2,d.len*sp/120);g.globalAlpha=a;g.strokeStyle=u<0.35?d.c1:d.c0;g.lineWidth=d.w*(1-u*0.6);g.lineCap='round';
+      g.beginPath();g.moveTo(d.x,d.y);g.lineTo(d.x-d.vx/sp*L,d.y-d.vy/sp*L);g.stroke()}
+    else{ // petal：くるくる回りながら色が移る炎片
+      const c=u<0.5?d.c0:u<0.8?d.c1:d.c2,z=d.w*(0.6+0.6*Math.sin(Math.min(1,u*1.6)*Math.PI));g.save();g.translate(d.x,d.y);g.rotate(d.rot);g.globalAlpha=a*0.9;g.fillStyle=c;
+      g.beginPath();g.ellipse(0,0,z,z*0.42,0,0,TAU);g.fill();g.globalAlpha=a*0.3;g.beginPath();g.ellipse(0,0,z*2,z*0.9,0,0,TAU);g.fill();g.restore()}
+  }
+  g.globalAlpha=1;
+}
+// 帯：pts=[[x,y],…]（先頭→末尾。末尾が絵の右端＝明るい先端）、w=各点の幅（数か関数）。flow=絵を流す速さ（0〜1/秒）、wave=波の振れ幅
+function drawRibbon(g,im,pts,w,o){
+  const n=pts.length-1;if(n<1||!im)return;const tw=im.width,th=im.height,fl=dv(o.flow,0),wv=dv(o.wave,0),T=VFXT;
+  const L=[],R=[];
+  for(let i=0;i<=n;i++){const a=pts[Math.max(0,i-1)],b=pts[Math.min(n,i+1)],dx=b[0]-a[0],dy=b[1]-a[1],m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m;
+    const ww=(typeof w==='function'?w(i/n):w)/2,off=wv?Math.sin(i*0.9-T*dv(o.wspd,22))*wv*(i/n):0,px=pts[i][0]+nx*off,py=pts[i][1]+ny*off;
+    L.push([px+nx*ww,py+ny*ww]);R.push([px-nx*ww,py-ny*ww])}
+  // 流れ：絵の読み出し位置を先端へ向かってずらし続ける。位相を半周ずらした2枚を重ね、継ぎ目が見えないよう交互に薄める
+  const ph=fl?[(T*fl)%1,(T*fl+0.5)%1]:[null];
+  g.save();g.globalCompositeOperation=dv(o.op,'source-over');
+  for(const q of ph){
+    const sh=q==null?0:q*0.3,ga=dv(o.a,1)*(q==null?1:Math.sin(Math.PI*q)*0.85);if(ga<=0.01)continue;g.globalAlpha=ga;
+    for(let i=0;i<n;i++){const u0=tw*Math.min(1,(q==null?1:0.7)*i/n+sh),u1=tw*Math.min(1,(q==null?1:0.7)*(i+1)/n+sh);
+      texTri(g,im,L[i][0],L[i][1],L[i+1][0],L[i+1][1],R[i][0],R[i][1],u0,0,u1,0,u0,th);
+      texTri(g,im,L[i+1][0],L[i+1][1],R[i+1][0],R[i+1][1],R[i][0],R[i][1],u1,0,u1,th,u0,th)}
+  }
+  g.restore();
 }
 /* ---- 重ねるVFX（普通の重ね＋加算のにじみ。黒い芯が消えないよう、加算だけにしない）。FX.sh の {k:'lv'}
    n='slash'（主斬撃：右から左へなぞって現れ、薄れながら浮く）/'hit'（命中の衝撃：弾けて消える）/'smoke'（散る靄：4コマの連番を重ねながら送る）
@@ -1308,6 +1380,9 @@ function drawLV(g,s){
     g.globalCompositeOperation='lighter';g.globalAlpha=a*0.55;g.drawImage(im,-w*dv(s.ax,0.5),-h*dv(s.ay,0.5),w,h);
   }else if(s.n==='slash'){
     const w=s.w,h=w*im.height/im.width,p=eo(s.t/0.075),hold=0.11,a=s.t<hold?1:1-Math.pow((s.t-hold)/(s.life-hold),1.5);
+    g.rotate(-(s.fx||1)*dv(s.sw,0)*(1-eo(s.t/0.1))); // 回り込み：少し手前の角度から振り抜く
+    const gl=vglow('lana_slash',VFXK.sword.glow);
+    if(gl){g.save();g.globalCompositeOperation='lighter';g.globalAlpha=a*(s.a||1)*(0.65+0.2*Math.sin(VFXT*36));g.scale((s.fx||1)*1.12,1.12);g.drawImage(gl,-w/2,-h/2,w,h);g.restore()}
     g.scale((s.fx||1)*(0.9+0.1*eo(s.t/0.1)+0.05*u),0.9+0.1*eo(s.t/0.1));
     g.beginPath();g.rect(w/2-p*w*1.08,-h,p*w*1.08+12,h*2);g.clip(); // 右端（振り始め）から左へなぞって現れる
     g.globalAlpha=a*(s.a||1);g.drawImage(im,-w/2,-h/2,w,h);
@@ -1341,17 +1416,29 @@ function drawFoxBody(g,a,lk,h,ox,oy){
     const s0=P(v.p0),s1=P(v.p1),L=Math.hypot(s1[0]-s0[0],s1[1]-s0[1]),ang=Math.atan2(s1[1]-s0[1],s1[0]-s0[0]),e=1-Math.pow(1-p,2);
     const x0=ox+(-FOXV.ox/FOXV.S-fr.ax)*sc,y0=oy+(-FOXV.oy/FOXV.S+dy-fr.ay)*sc,w=1024/FOXV.S*sc,hh=1536/FOXV.S*sc;
     g.save();g.translate(s0[0],s0[1]);g.rotate(ang);g.beginPath();g.rect(-L*2,-L*3,L*2+L*1.25*e,L*6);g.rotate(-ang);g.translate(-s0[0],-s0[1]);g.clip(); // 線の向きに先端まで、なぞって現れる
-    g.globalAlpha=al;g.drawImage(im,x0,y0,w,hh);g.globalCompositeOperation='lighter';g.globalAlpha=al*0.45;g.drawImage(im,x0,y0,w,hh);
+    const gl=vglow(v.tex,VFXK.fox.glow),fl=0.75+0.25*Math.sin(VFXT*29+k.length)*Math.sin(VFXT*17); // 炎の揺らぎ（明滅）
+    if(gl){g.save();g.globalCompositeOperation='lighter';g.globalAlpha=al*0.55*fl;g.drawImage(gl,x0-w*0.03,y0-hh*0.03,w*1.06,hh*1.06);g.restore()}
+    g.globalAlpha=al;g.drawImage(im,x0,y0,w,hh);g.globalCompositeOperation='lighter';g.globalAlpha=al*0.45*fl;g.drawImage(im,x0,y0,w,hh);
     g.restore();
+    // 残滓：なぞっている先端から炎片が剥がれて舞い上がる
+    if(p<1&&Math.random()<0.85*VFXK.k){const tp=[s0[0]+Math.cos(ang)*L*e,s0[1]+Math.sin(ang)*L*e],P=VFXK.fox.petal;
+      dust({kind:'petal',x:tp[0]+(Math.random()-0.5)*8,y:tp[1]+(Math.random()-0.5)*8,vx:(Math.random()-0.5)*40,vy:-30-Math.random()*50,drag:1.6,life:0.4+Math.random()*0.35,w:1.6+Math.random()*1.6,vr:(Math.random()-0.5)*16,wob:7,c0:P[0],c1:P[1],c2:P[2]})}
   }
 }
 // ラナの通常攻撃（円形）の見た目：狙った位置に主斬撃、命中した敵に衝撃、遅れて散る靄、赤い火の粉、わずかな揺れ。素材が無ければ false
 function lanaFx(cx,cy,r,rep,hits){
   if(!vtex('lana_slash'))return false;
   const w=r*2.9,rot=(Math.random()-0.5)*0.22,fx=rep?-1:1,h=w*2/3;
-  FX.sh.push({k:'lv',n:'slash',x:cx,y:cy-4,w,rot,fx,t:0,life:0.3,a:rep?0.75:1,my:-6});
+  FX.sh.push({k:'lv',n:'slash',x:cx,y:cy-4,w,rot,fx,sw:0.2,t:0,life:0.3,a:rep?0.75:1,my:-6});
+  { // 残滓：弧に沿って黒い欠片が剥がれて落ち、赤い筋が外へ飛ぶ
+    const K=VFXK.sword;for(let i=0;i<7;i++){const th=-Math.PI*(0.12+0.8*i/6),px=cx+Math.cos(th)*w*0.42*fx,py=cy+Math.sin(th)*h*0.36+h*0.1;
+      dustBurst('shard',px,py,1.4,{ang:th,spread:1.2,v0:30,v1:110,l0:0.35,l1:0.3,spin:18,p:{grav:300,drag:1.4,w:1.6+Math.random()*1.8,c0:K.shard,c1:K.streak[0]}});
+      dustBurst('streak',px,py,1.2,{ang:th,spread:0.6,v0:120,v1:260,l0:0.12,l1:0.12,p:{drag:4,w:1.4,len:8,c0:K.streak[0],c1:K.streak[1]}})}}
   FX.sh.push({k:'lv',n:'smoke',x:cx,y:cy-h*0.08,w:w*0.95,rot:rot*0.5,fx:Math.random()<0.5?-1:1,t:-0.12,life:0.55,a:rep?0.6:0.8,my:-12,mx:(Math.random()-0.5)*14});
-  let n=0;for(const e of hits){if(n++>=3)break;FX.sh.push({k:'lv',n:'hit',x:e.x+(Math.random()-0.5)*6,y:e.y-18+(Math.random()-0.5)*6,w:66,rot:Math.random()*TAU,t:-0.01*n,life:0.24})}
+  let n=0;for(const e of hits){if(n++>=3)break;
+    FX.sh.push({k:'ring',x:e.x,y:e.y-18,r0:4,r1:26,w:2.4,col:VFXK.sword.ring,t:0,life:0.22});
+    dustBurst('streak',e.x,e.y-18,5,{v0:150,v1:300,l0:0.08,l1:0.1,p:{drag:6,w:1.3,len:9,c0:VFXK.sword.streak[0],c1:'#fff0e8'}});
+    FX.sh.push({k:'lv',n:'hit',x:e.x+(Math.random()-0.5)*6,y:e.y-18+(Math.random()-0.5)*6,w:66,rot:Math.random()*TAU,t:-0.01*n,life:0.24})}
   for(let i=0;i<12;i++){const th=-Math.PI*(0.1+0.85*Math.random()),px=cx+Math.cos(th)*w*0.42*fx,py=cy+Math.sin(th)*h*0.38+h*0.12;
     addPart({x:px,y:py,vx:Math.cos(th)*fx*(40+Math.random()*90),vy:Math.sin(th)*(40+Math.random()*90)-20,t:0,life:0.25+Math.random()*0.35,size:1.5+Math.random()*2.2,col:i%3?'#ff2a1e':'#ff7a5a',drag:0.86,grav:60})}
   FX.shake=Math.min(16,FX.shake+(rep?0.8:1.6));
@@ -1622,11 +1709,11 @@ let paused=false,speed=1,RW=null;
 let W=CFG.W,H=600,VSx=1,VSy=1,bgC=null;
 const STEP=1/60;
 const aim={on:false,x:0,y:0};
-const FX={parts:[],sh:[],floats:[],ghosts:[],shake:0,banner:null,breach:0,cut:null};
+const FX={parts:[],dust:[],sh:[],floats:[],ghosts:[],shake:0,banner:null,breach:0,cut:null};
 const cv=$('#cv'),ctx=cv.getContext('2d'),app=$('#app');
 
 function layout(){B.lineY=H-LINE_OFF;B.allies.forEach(a=>{a.x=W*[0.18,0.5,0.82][a.slot];a.y=H-FOOT_OFF})}
-function clearFX(){FX.parts.length=0;FX.ghosts.length=0;FX.sh.length=0;FX.floats.length=0;FX.shake=0;FX.banner=null;FX.breach=0;FX.cut=null;if(typeof BAR!=='undefined')BAR.emb.length=0}
+function clearFX(){FX.parts.length=0;FX.dust.length=0;FX.ghosts.length=0;FX.sh.length=0;FX.floats.length=0;FX.shake=0;FX.banner=null;FX.breach=0;FX.cut=null;if(typeof BAR!=='undefined')BAR.emb.length=0}
 
 function newBattle(seed){
   const rs=mulberry32(seed),rc=mulberry32(hash32(seed^0x5A5A5A5A)),K=BKINDS[BOPT.kind],dep=BOPT.depth||0,fl=(BOPT.floor||1)-1;
@@ -2053,7 +2140,9 @@ function updShots(dt){
     if(L<=st+4){
       const foxB=s.from&&s.a&&s.a.d.id==='fox'&&VT.fox_burst;
       if(foxB){FX.sh.push({k:'lv',n:'pop',tex:'fox_burst',x:s.tx,y:s.ty,w:40,rot:Math.random()*TAU,spin:(Math.random()<0.5?-1:1)*0.9,t:0,life:0.3,s0:0.35,grow:0.09,hold:0.05,s1:0.15});
-        for(let j=0;j<5;j++){const an=Math.random()*TAU,v=40+Math.random()*70;addPart({x:s.tx,y:s.ty,vx:Math.cos(an)*v,vy:Math.sin(an)*v-25,t:0,life:0.25+Math.random()*0.3,size:1.4+Math.random()*1.6,col:j%2?'#ff5a6e':'#ffb0a0',drag:0.85,grav:40})}}
+        const P=VFXK.fox.petal;FX.sh.push({k:'ring',x:s.tx,y:s.ty,r0:3,r1:22,w:2,col:VFXK.fox.ring,t:0,life:0.2});
+        dustBurst('petal',s.tx,s.ty,5,{v0:30,v1:90,up:-30,l0:0.3,l1:0.3,spin:18,p:{drag:1.8,w:1.4+Math.random()*1.4,wob:8,c0:P[0],c1:P[1],c2:P[2]}});
+        dustBurst('streak',s.tx,s.ty,3,{v0:120,v1:220,l0:0.08,l1:0.08,p:{drag:6,w:1.1,len:7,c0:P[1],c1:P[0]}})}
       else fxSpark(s.tx,s.ty,s.col,5);
       if(s.from&&!foxB){if(s.a&&s.a.d.id==='sister')fxTex({n:'pillar',x:s.tx,y:s.ty+16,w:30,ay:0.93,life:0.32,vy0:0.2,a:0.8,fi:0.06,fo:1.5});
         fxTex({n:'spark',col:s.col,x:s.tx,y:s.ty,w:26,life:0.18,s0:0.6,s1:1.1,rot:Math.random()*TAU,fi:0.05,fo:1.4});
@@ -2627,6 +2716,8 @@ function updFX(dt){
   FX.shake*=Math.pow(0.0006,dt);if(FX.breach>0)FX.breach-=dt*1.6;
   for(let i=FX.parts.length-1;i>=0;i--){const p=FX.parts[i];p.t+=dt;if(p.t>=p.life){FX.parts[i]=FX.parts[FX.parts.length-1];FX.parts.pop();continue}const k=Math.exp(-p.drag*dt);p.vx*=k;p.vy*=k;p.vy+=p.grav*dt;p.x+=p.vx*dt;p.y+=p.vy*dt}
   for(let i=FX.sh.length-1;i>=0;i--){const s=FX.sh[i];s.t+=dt;if(s.t>=s.life)FX.sh.splice(i,1)}
+  for(let i=FX.dust.length-1;i>=0;i--){const d=FX.dust[i];d.t+=dt;if(d.t>=d.life){FX.dust[i]=FX.dust[FX.dust.length-1];FX.dust.pop();continue}
+    const k=Math.exp(-d.drag*dt);d.vx*=k;d.vy*=k;d.vy+=d.grav*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.rot+=d.vr*dt;if(d.wob)d.x+=Math.sin(d.t*d.wob+d.ph)*12*dt}
   for(let i=FX.ghosts.length-1;i>=0;i--){const o=FX.ghosts[i];o.t+=dt;if(o.t>=o.life)FX.ghosts.splice(i,1)}
   for(let i=FX.floats.length-1;i>=0;i--){const f=FX.floats[i];f.t+=dt;f.y-=28*dt;if(f.t>=0.7)FX.floats.splice(i,1)}
   if(FX.banner){FX.banner.t+=dt;if(FX.banner.t>1.9)FX.banner=null}
@@ -2767,7 +2858,7 @@ function drawBossBar(g){
   g.font='600 11px '+FONT;g.textAlign='center';g.fillStyle='#000';g.fillText(b.d.name,W/2+1,y+19);g.fillStyle='#f0b9ad';g.fillText(b.d.name,W/2,y+18);
 }
 function render(T){
-  const g=ctx;g.setTransform(VSx,0,0,VSy,0,0);g.globalAlpha=1;g.globalCompositeOperation='source-over';
+  const g=ctx;g.setTransform(VSx,0,0,VSy,0,0);g.globalAlpha=1;g.globalCompositeOperation='source-over';VFXT=T;
   if(bgC)g.drawImage(bgC,0,0,W,H);
   if(!B)return;
   drawBarrier(g,T);
@@ -2785,6 +2876,7 @@ function render(T){
   for(const s of FX.sh)if(s.k==='tex'&&s.ly==='top')drawTex(g,s);
   for(const a of B.allies)drawAlly(g,a,T);
   for(const s of FX.sh)if(s.k==='lv')drawLV(g,s);
+  drawDust(g,'normal');
   if(tuning)drawTunePreview(g,T);
   // 加算合成の光もの
   g.globalCompositeOperation='lighter';
@@ -2797,10 +2889,14 @@ function render(T){
     const id=s.from&&s.a?s.a.d.id:null,fb=id==='fox'?vsmall('firebolt',null,11,31):null,ob=id==='sister'?vsmall('orb','#ffe9a0',18,18):null;
     const fh=id==='fox'?vtex('fox_head'):null,ft=fh?vtex('fox_tail'):null;
     if(fh&&ft){ // 狐火の霊：頭（伸ばさない）と、発射点からの距離に合わせて伸びる尾（最大46）
-      const ang=Math.atan2(s.ty-s.y,s.tx-s.x),tl=Math.min(46,Math.hypot(s.x-(s.lx??s.x),s.y-(s.ly??s.y))+8),th=11;
-      g.save();g.translate(s.x,s.y);g.rotate(ang);g.globalCompositeOperation='source-over';
-      g.globalAlpha=0.9;g.drawImage(ft,-tl,-th/2,tl+4,th);g.globalCompositeOperation='lighter';g.globalAlpha=0.5;g.drawImage(ft,-tl,-th/2,tl+4,th);
-      g.rotate(Math.PI/2);g.globalCompositeOperation='source-over';g.globalAlpha=1;g.drawImage(fh,-11,-12,22,22);g.globalCompositeOperation='lighter';g.globalAlpha=0.45;g.drawImage(fh,-11,-12,22,22);
+      const ang=Math.atan2(s.ty-s.y,s.tx-s.x),tl=Math.min(46,Math.hypot(s.x-(s.lx??s.x),s.y-(s.ly??s.y))+8),cs=Math.cos(ang),sn=Math.sin(ang),pts=[];
+      for(let j=0;j<=7;j++){const d=tl*(1-j/7)-2;pts.push([s.x-cs*d,s.y-sn*d])}
+      drawRibbon(g,ft,pts,u=>11*(0.3+0.7*u),{a:0.9,flow:2.4,wave:2.2,wspd:26});drawRibbon(g,ft,pts,u=>11*(0.3+0.7*u),{op:'lighter',a:0.45,flow:2.4,wave:2.2,wspd:26});
+      if(Math.random()<0.4*VFXK.k){const P=VFXK.fox.petal,b=pts[2];dust({kind:'petal',x:b[0],y:b[1],vx:-cs*30+(Math.random()-0.5)*30,vy:-sn*30-20,drag:2,life:0.3+Math.random()*0.25,w:1.3+Math.random()*1.2,vr:(Math.random()-0.5)*16,wob:8,c0:P[0],c1:P[1],c2:P[2]})}
+      const hg=vglow('fox_head',VFXK.fox.glow),fk=0.8+0.2*Math.sin(VFXT*37+s.x);
+      g.save();g.translate(s.x,s.y);g.rotate(ang);
+      if(hg){g.globalCompositeOperation='lighter';g.globalAlpha=0.6*fk;g.drawImage(hg,-20,-20,40,40)}
+      g.rotate(Math.PI/2+Math.sin(VFXT*24+s.y)*0.12);g.scale(fk*0.1+0.92,fk*0.1+0.92);g.globalCompositeOperation='source-over';g.globalAlpha=1;g.drawImage(fh,-11,-12,22,22);g.globalCompositeOperation='lighter';g.globalAlpha=0.45;g.drawImage(fh,-11,-12,22,22);
       g.restore();g.globalCompositeOperation='lighter';continue;
     }
     if(fb){ // 狐火をまとったクナイ：進む向きに回し、炎を尾として引く。刃先は鋼の光
@@ -2821,6 +2917,7 @@ function render(T){
     else if(s.k==='slash'){g.globalAlpha=a;g.strokeStyle=s.col;g.lineWidth=5*a+1;g.beginPath();g.arc(s.x,s.y+s.r*0.3,s.r,Math.PI*(1.05+u*0.3),Math.PI*(1.95-u*0.1));g.stroke()}
   }
   for(const p of FX.parts){const a=1-p.t/p.life,z=p.size*(0.4+a*0.6);g.globalAlpha=a;g.fillStyle=p.col;g.fillRect(p.x-z/2,p.y-z/2,z,z)}
+  g.globalCompositeOperation='lighter';drawDust(g,'add');g.globalCompositeOperation='lighter';
   g.globalCompositeOperation='source-over';
   g.textAlign='center';
   for(const f of FX.floats){g.globalAlpha=1-f.t/0.7;g.font='700 '+f.size+'px '+FONT;g.fillStyle='#000';g.fillText(f.txt,f.x+1,f.y+1);g.fillStyle=f.col;g.fillText(f.txt,f.x,f.y)}
