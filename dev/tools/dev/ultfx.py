@@ -1,5 +1,6 @@
 """超必殺の着弾エフェクトを、明けた瞬間からの時刻で撮る（描画の時計を手動で進める）。
-   使い方: python3 tools/dev/ultfx.py <full.html> <出力.png> <キャラ> [時刻(秒,カンマ区切り)]"""
+   使い方: python3 tools/dev/ultfx.py <full.html> <出力.png> <キャラ> [時刻(秒,カンマ区切り)] [URLの問い合わせ 例: lana=old] [画面 例: 375x667]
+   連番（SEQ）を使う技は、カットインの間に展開が終わるのを待ってから撮る"""
 import sys,os
 from playwright.sync_api import sync_playwright
 from PIL import Image
@@ -7,16 +8,21 @@ INIT="""(()=>{let now=1000;const q=[];performance.now=()=>now;window.requestAnim
 window.__tick=(n,ms)=>{for(let i=0;i<n;i++){now+=ms;const c=q.splice(0);c.forEach(f=>f(now))}}})()"""
 src,out,cid=sys.argv[1],sys.argv[2],sys.argv[3]
 TS=[float(v) for v in (sys.argv[4] if len(sys.argv)>4 else '0.03,0.1,0.18,0.28,0.4,0.55,0.8,1.5,3.5').split(',')]
+QS=('?'+sys.argv[5]) if len(sys.argv)>5 and sys.argv[5] else ''
+VW,VH=[int(v) for v in (sys.argv[6] if len(sys.argv)>6 else '390x844').split('x')]
 with sync_playwright() as p:
-  b=p.chromium.launch();pg=b.new_page(viewport={'width':390,'height':844},device_scale_factor=1);errs=[]
+  b=p.chromium.launch();pg=b.new_page(viewport={'width':VW,'height':VH},device_scale_factor=1);errs=[]
   pg.on('pageerror',lambda e:errs.append(str(e)[:160]))
-  pg.add_init_script(INIT);pg.goto('file://'+os.path.abspath(src))
+  pg.add_init_script(INIT);pg.goto('file://'+os.path.abspath(src)+QS)
   for _ in range(30):pg.evaluate("__tick(5,16.67)");pg.wait_for_timeout(40)
   others=[i for i in ['fox','sword','mage','sister','blue'] if i!=cid][:2]
   pg.evaluate(f"NARAKU.start({[cid]+others},321)")
   pg.evaluate("setInterval(()=>{if(NARAKU.mode==='levelup')NARAKU.pick(0)||NARAKU.pick(1)||NARAKU.pick(-1)},5)")
   for _ in range(40):pg.evaluate("__tick(30,16.67)");pg.wait_for_timeout(20)
   pg.evaluate(f"NARAKU.startUlt(NARAKU.B.allies.find(o=>o.d.id==='{cid}'))")
+  for _ in range(100):
+    if pg.evaluate("Object.values(NARAKU.SEQ||{}).every(q=>q.im.filter(Boolean).length===q.n&&q.mt.filter(Boolean).length===q.n)"):break
+    pg.wait_for_timeout(100)
   for _ in range(200):
     if not pg.evaluate("!!NARAKU.ULT"):break
     pg.evaluate("__tick(1,16.67)")
