@@ -13,7 +13,7 @@ import sys,os,glob
 import numpy as np
 from PIL import Image,ImageFilter
 name,src=sys.argv[1],sys.argv[2];ROCK=not any(v=='rock=0' for v in sys.argv[3:]);out='assets'
-keep={'lanaU':'cardart/lana_ult_seq','blueU':'cardart/blue_ult_seq'}.get(name,f'cardart/{name}_seq')
+keep={'lanaU':'cardart/lana_ult_seq','blueU':'cardart/blue_ult_seq','foxU':'cardart/fox_ult_seq'}.get(name,f'cardart/{name}_seq')
 fs=sorted(glob.glob(f'{src}/*.png'))or sorted(glob.glob(f'{src}/*.webp'))
 assert len(fs)==48,len(fs)
 os.makedirs(keep,exist_ok=True)

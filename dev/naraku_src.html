@@ -1180,7 +1180,8 @@ function seqFree(name){const q=SEQ[name];if(!q)return;delete SEQ[name];for(const
 /* 超必殺の連番の設定（描き方は drawUltSeq の説明を参照） */
 const ULT_SEQ={ // n＝素材の名前 / fx＝FX の時計の名前 / fps / fin＝現れる秒 / out＝[消え始め,消え終わり] / end＝時計を止める秒 / fadeY＝下端を消す範囲（防衛線からの距離） / cx,cy＝コマの中のどこを戦場の中ほどに置くか / wide＝戦場の幅の何倍にするか
   sword:{n:'lanaU',fx:'lanaU',fps:12,fin:0.08,out:[3.55,4.1],end:4.4,mat:1,add:1,mix:0,fadeY:[-46,26],cx:0.5,cy:0.48,wide:1.12},
-  blue: {n:'blueU',fx:'blueU',fps:8, fin:0.08,out:[5.3,6.0], end:6.05,mat:1,add:1,mix:1,fadeY:[-46,26],cx:0.5,cy:0.5,wide:1.12}};
+  blue: {n:'blueU',fx:'blueU',fps:8, fin:0.08,out:[5.3,6.0], end:6.05,mat:1,add:1,mix:1,fadeY:[-46,26],cx:0.5,cy:0.5,wide:1.12},
+  fox:  {n:'foxU', fx:'foxU', fps:16,fin:0.08,out:[2.7,3.0], end:3.05,mat:1,add:1,mix:0,fadeY:[-46,26],cx:0.5,cy:0.5,wide:1.12}};
 function ultSeqOn(id){const L=ULT_SEQ[id];return !!L&&!!SEQS[L.n+'_01']}
 const BFS=/*__BFS_START__*/{}/*__BFS_END__*/;
 const BF={};for(const k in BFS){const im=new Image();im.src=BFS[k];BF[k]=im}
@@ -2537,7 +2538,7 @@ function useCard(si,x,y){
 /* ---- 超必殺（同じキャラの札の2連続で発動。1戦闘1回） ----
    カットイン（透過の立ち絵が滑り込む1.3秒。戦場の枠の中だけを覆う）のあいだ戦闘は完全に止まり、明けた瞬間に必殺が着弾する */
 const ULT_DEF={
-  fox:   {name:'百鬼狐火',  col:'#ff9a2e',fire(a){const c=CARDS.find(o=>o.id==='fox_fire'),pts=ultTargets(14);pts.forEach((p,i)=>B.impacts.push({t:0.05+i*0.07,c,x:p.x,y:p.y,k:1.5}))}},
+  fox:   {name:'百鬼狐火',  col:'#ff9a2e',fire(a){const c=Object.assign({},CARDS.find(o=>o.id==='fox_fire'),{ult:'fox'}),pts=ultTargets(14);if(ultSeqOn('fox'))FX.foxU={t:0};pts.forEach((p,i)=>B.impacts.push({t:0.05+i*0.07,c,x:p.x,y:p.y,k:1.5}))}},
   sword: {name:'天地開闢',  col:'#ff2a1e',fire(a){const b=CARDS.find(o=>o.id==='sw_rift'),c=Object.assign({},b,{dmg:140,zone:4,zdps:55,ult:'sword',pal:['#fff0e8','#ff2a1e','#2a0504']});if(ultSeqOn('sword'))FX.lanaU={t:0};for(let i=0;i<6;i++)B.impacts.push({t:0.04+i*0.06,c,x:30+i*60,y:B.lineY*0.5,k:1})}},
   sister:{name:'聖母の加護',col:'#ffe9a0',fire(a){
     const b=CARDS.find(o=>o.id==='si_pillar'),c=Object.assign({},b,{shape:'row',hh:B.lineY*0.5/B.M.skR,dmg:90,healFlat:0,fx:'full'});
@@ -2617,7 +2618,8 @@ function impact(c,x,y,k){
   }
   if(c.healFlat)for(const a of B.allies)if(a.alive){a.hp=Math.min(a.max,a.hp+c.healFlat*k);fxSpark(a.x,a.y-64,'#bff0c0',6)}
   if(c.zone)B.zones.push({x,hw,t:c.zone,life:c.zone,tick:0.5,dps:c.zdps*B.M.skDmg*k*(ow?ow.sk:1),c});
-  if(c.ult==='blue'&&ultSeqOn('blue')){FX.shake=Math.min(16,FX.shake+7);return} // 斬月三日月の連番：絵は連番に任せ、横一列の光の帯は描かない（揺れだけ）
+  if(c.ult==='blue'&&ultSeqOn('blue')){FX.shake=Math.min(16,FX.shake+7);return}
+  if(c.ult==='fox'&&ultSeqOn('fox')){FX.shake=Math.min(16,FX.shake+3);return} // 百鬼狐火の連番：絵は連番に任せ、着弾の爆発は描かない（揺れだけ） // 斬月三日月の連番：絵は連番に任せ、横一列の光の帯は描かない（揺れだけ）
   if(c.fx==='full')fxFull(c.pal);else if(c.shape==='row')fxRow(y,hh,c.pal);else if(c.shape==='col')(c.ult==='sword'?ultLanaCol:fxCol)(x,hw,c.pal);else fxExplosion(x,y,r,c.pal);
   if(c.fx==='full')return;
   if(c.freeze){const hits=[];for(const e of B.enemies)if(!e.dead&&e.frzT>0&&Math.hypot(e.x-x,e.y-16-y)<=r+e.d.r*e.sc)hits.push(e);fxSkillTex(c,x,y,r,hh,hits)}
