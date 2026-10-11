@@ -1177,6 +1177,11 @@ function seqLoad(name){
   return q;
 }
 function seqFree(name){const q=SEQ[name];if(!q)return;delete SEQ[name];for(const a of[q.im,q.mt])for(const b of a)if(b&&b.close)b.close()}
+/* 超必殺の連番の設定（描き方は drawUltSeq の説明を参照） */
+const ULT_SEQ={ // n＝素材の名前 / fx＝FX の時計の名前 / fps / fin＝現れる秒 / out＝[消え始め,消え終わり] / end＝時計を止める秒 / fadeY＝下端を消す範囲（防衛線からの距離） / cx,cy＝コマの中のどこを戦場の中ほどに置くか / wide＝戦場の幅の何倍にするか
+  sword:{n:'lanaU',fx:'lanaU',fps:12,fin:0.08,out:[3.55,4.1],end:4.4,mat:1,add:1,mix:0,fadeY:[-46,26],cx:0.5,cy:0.48,wide:1.12},
+  blue: {n:'blueU',fx:'blueU',fps:8, fin:0.08,out:[5.3,6.0], end:6.05,mat:1,add:1,mix:1,fadeY:[-46,26],cx:0.5,cy:0.5,wide:1.12}};
+function ultSeqOn(id){const L=ULT_SEQ[id];return !!L&&!!SEQS[L.n+'_01']}
 const BFS=/*__BFS_START__*/{}/*__BFS_END__*/;
 const BF={};for(const k in BFS){const im=new Image();im.src=BFS[k];BF[k]=im}
 const BAR_ON=Object.keys(BFS).length>0;
@@ -2025,7 +2030,7 @@ const FX={parts:[],dust:[],sh:[],floats:[],ghosts:[],shake:0,banner:null,breach:
 const cv=$('#cv'),ctx=cv.getContext('2d'),app=$('#app');
 
 function layout(){B.lineY=H-LINE_OFF;B.allies.forEach(a=>{a.x=W*[0.18,0.5,0.82][a.slot];a.y=H-FOOT_OFF})}
-function clearFX(){FX.parts.length=0;FX.dust.length=0;FX.ghosts.length=0;FX.sh.length=0;FX.floats.length=0;FX.shake=0;FX.banner=null;FX.breach=0;FX.cut=null;FX.lanaU=null;FX.blueU=null;seqFree('lanaU');seqFree('blueU');if(typeof BAR!=='undefined')BAR.emb.length=0}
+function clearFX(){FX.parts.length=0;FX.dust.length=0;FX.ghosts.length=0;FX.sh.length=0;FX.floats.length=0;FX.shake=0;FX.banner=null;FX.breach=0;FX.cut=null;for(const id in ULT_SEQ){FX[ULT_SEQ[id].fx]=null;seqFree(ULT_SEQ[id].n)}if(typeof BAR!=='undefined')BAR.emb.length=0}
 
 function newBattle(seed){
   const rs=mulberry32(seed),rc=mulberry32(hash32(seed^0x5A5A5A5A)),K=BKINDS[BOPT.kind],dep=BOPT.depth||0,fl=(BOPT.floor||1)-1;
@@ -2533,7 +2538,7 @@ function useCard(si,x,y){
    カットイン（透過の立ち絵が滑り込む1.3秒。戦場の枠の中だけを覆う）のあいだ戦闘は完全に止まり、明けた瞬間に必殺が着弾する */
 const ULT_DEF={
   fox:   {name:'百鬼狐火',  col:'#ff9a2e',fire(a){const c=CARDS.find(o=>o.id==='fox_fire'),pts=ultTargets(14);pts.forEach((p,i)=>B.impacts.push({t:0.05+i*0.07,c,x:p.x,y:p.y,k:1.5}))}},
-  sword: {name:'天地開闢',  col:'#ff2a1e',fire(a){const b=CARDS.find(o=>o.id==='sw_rift'),c=Object.assign({},b,{dmg:140,zone:4,zdps:55,ult:'sword',pal:['#fff0e8','#ff2a1e','#2a0504']});FX.lanaU={t:0};for(let i=0;i<6;i++)B.impacts.push({t:0.04+i*0.06,c,x:30+i*60,y:B.lineY*0.5,k:1})}},
+  sword: {name:'天地開闢',  col:'#ff2a1e',fire(a){const b=CARDS.find(o=>o.id==='sw_rift'),c=Object.assign({},b,{dmg:140,zone:4,zdps:55,ult:'sword',pal:['#fff0e8','#ff2a1e','#2a0504']});if(ultSeqOn('sword'))FX.lanaU={t:0};for(let i=0;i<6;i++)B.impacts.push({t:0.04+i*0.06,c,x:30+i*60,y:B.lineY*0.5,k:1})}},
   sister:{name:'聖母の加護',col:'#ffe9a0',fire(a){
     const b=CARDS.find(o=>o.id==='si_pillar'),c=Object.assign({},b,{shape:'row',hh:B.lineY*0.5/B.M.skR,dmg:90,healFlat:0,fx:'full'});
     B.impacts.push({t:0.05,c,x:W/2,y:B.lineY*0.5,k:1});
@@ -3036,12 +3041,12 @@ function updZones(dt){
     if(z.tick<=0){z.tick+=0.5;
       for(const e of B.enemies){if(e.dead||e.y>B.lineY+8||Math.abs(e.x-z.x)>z.hw+e.d.r*e.sc)continue;
         e.slowT=Math.max(e.slowT,0.6);hurt(e,z.dps*0.5,z.c.pal[1],false,true,z.c.owner,'skill')}
-      if(!(z.c.ult==='sword'&&lanaSeqOn()))for(let k=0;k<6;k++)addPart({x:z.x+(Math.random()-0.5)*z.hw*1.4,y:Math.random()*B.lineY,vx:0,vy:-40-Math.random()*60,t:0,life:0.5+Math.random()*0.4,size:2+Math.random()*2,col:z.c.pal[1],drag:0.5,grav:0})}
+      if(!(z.c.ult==='sword'&&ultSeqOn('sword')))for(let k=0;k<6;k++)addPart({x:z.x+(Math.random()-0.5)*z.hw*1.4,y:Math.random()*B.lineY,vx:0,vy:-40-Math.random()*60,t:0,life:0.5+Math.random()*0.4,size:2+Math.random()*2,col:z.c.pal[1],drag:0.5,grav:0})}
     if(z.t<=0)B.zones.splice(i,1);
   }
 }
 function drawZone(g,z,T){
-  if(z.c.ult==='sword'&&(lanaSeqOn()||vtex('lanaU_f4')))return; // 天地開闢の地割れは drawLanaUlt が描く（連番のときは、ダメージの場所をコードでは描かない）
+  if(z.c.ult==='sword'&&ultSeqOn('sword'))return; // 天地開闢の連番のときは、地割れの帯（ダメージの場所）をコードでは描かない
   const a=Math.min(1,z.t/0.4,(z.life-z.t)/0.12+0.3),y1=B.lineY;
   g.save();g.globalAlpha=a*0.32;
   const gr=g.createLinearGradient(z.x-z.hw,0,z.x+z.hw,0);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(0.5,z.c.pal[2]);gr.addColorStop(1,'rgba(0,0,0,0)');
@@ -3062,34 +3067,16 @@ function fxCol(x,hw,pal){
   for(let i=0;i<110;i++)addPart({x:x+(Math.random()-0.5)*hw*1.6,y:Math.random()*y1,vx:(Math.random()-0.5)*260,vy:-60-Math.random()*240,t:0,life:0.3+Math.random()*0.6,size:2+Math.random()*3,col:pal[i%4===0?0:i%3===0?2:1],drag:2.5,grav:200})
   FX.shake=Math.min(16,FX.shake+11);
 }
-/* ---- ラナの超必殺「天地開闢」の見た目。ユーザーがChatGPTで描いた全画面の透過の絵（tools/dev/lanault2.py）を4段階で重ねる。
-   床の層 vfx_lanaU_f1..f4（敵と味方の下）＋上の層 vfx_lanaU_t1,t3,t4（味方の上。2段階目は t1 を流用）＋ラナの体のオーラ a1..a4（ラナの後ろ）。
-   絵はパッと切り替えず、0.15秒かけて溶かしながら重ね、床はゆっくり広がり、上の層は上へ流れながら膨らむ（コマの間も止まらない）。
-   4段階目の床は、地割れ（4秒）が続く間だけ残って脈打つ。見た目だけ（戦闘の結果は impact と B.zones のまま） */
-const LANA_U={ // [現れ始め, 消え始め, 消え終わり]（明けた瞬間からの秒）
-  f:[[0,0.28,0.45],[0.22,0.55,0.72],[0.5,0.95,1.12],[0.9,3.7,4.3]],
-  t:[['t1',0,0.3,0.48],['t1',0.25,0.55,0.75],['t3',0.5,0.95,1.15],['t4',0.9,1.3,1.75]],
-  aura:[0,1.6,2.1],fade:0.15};
-function ultLanaCol(x,hw,pal){ // 1列ずつの着弾：絵は全画面の層に任せ、ここは火の筋と欠片と揺れだけ
-  if(lanaSeqOn()){FX.shake=Math.min(16,FX.shake+6);return} // 連番のとき：絵は連番に任せ、列ごとの火の筋・欠片は描かない（揺れだけ）
-  const y1=B.lineY,K=VFXK.sword;
-  dustBurst('streak',x,y1*0.55,6,{ang:-Math.PI/2,spread:1,v0:160,v1:360,jit:hw*1.2,l0:0.15,l1:0.25,p:{drag:3,w:1.5,len:10,c0:K.streak[0],c1:K.streak[1]}});
-  dustBurst('shard',x,y1*0.45,5,{ang:-Math.PI/2,spread:2.2,v0:80,v1:240,jit:hw,l0:0.4,l1:0.4,spin:14,p:{drag:2,grav:420,w:2.5+Math.random()*2.5,c0:K.shard,c1:K.ring}});
+function ultLanaCol(x,hw,pal){ // 天地開闢の1列ずつの着弾：絵は連番に任せ、列ごとの火の筋・欠片は描かない（揺れだけ）。連番の素材が無いときは従来の縦一列の見た目
+  if(!ultSeqOn('sword'))return fxCol(x,hw,pal);
   FX.shake=Math.min(16,FX.shake+6);
 }
 /* ---- 超必殺の連番版（2026-10-11）。ユーザーが動画AIの動画から選んだ48コマを、明けた瞬間から1枚ずつ送る（ラナ＝4秒・毎秒12コマ／アベニウス＝6秒・毎秒8コマ）。
    層は1枚だけ（味方の上）。ダメージの場所をコードで描く演出（列ごとの火の筋・地割れの帯・横一列の光の帯など）は、連番のときは出さない（揺れだけ）。
-   URLに ?ult=old を付けると旧版に戻る（?lana=old でも同じ）。
+   連番の素材（SEQS）が無いときだけ、従来のコード描画（縦一列・横一列の光）で動く。旧い止め絵の版（床・上・オーラ）は 2026-10-11 に削除した。
    重ね方：抜き（黒＋不透明度）を普通に重ねて戦場を暗くし、その上に光を加算で足す。下端は防衛線の手前から消す（味方に被せない）。
    mix＝コマの間を溶かす割合（0＝溶かさず1枚ずつ／1＝次のコマへ常に溶かしながら送る。毎秒8コマのアベニウスは1）。
    見た目だけ（戦闘の結果は impact と B.zones のまま） */
-const ULT_SEQ={ // n＝素材の名前 / fx＝FX の時計の名前 / fps / fin＝現れる秒 / out＝[消え始め,消え終わり] / end＝時計を止める秒 / fadeY＝下端を消す範囲（防衛線からの距離） / cx,cy＝コマの中のどこを戦場の中ほどに置くか / wide＝戦場の幅の何倍にするか
-  sword:{n:'lanaU',fx:'lanaU',fps:12,fin:0.08,out:[3.55,4.1],end:4.4,mat:1,add:1,mix:0,fadeY:[-46,26],cx:0.5,cy:0.48,wide:1.12},
-  blue: {n:'blueU',fx:'blueU',fps:8, fin:0.08,out:[5.3,6.0], end:6.05,mat:1,add:1,mix:1,fadeY:[-46,26],cx:0.5,cy:0.5,wide:1.12}};
-const LANA_SEQ=ULT_SEQ.sword;
-const ULT_OLD=/[?&](ult|lana)=old\b/.test(location.search);
-function ultSeqOn(id){const L=ULT_SEQ[id];return !!L&&!ULT_OLD&&!!SEQS[L.n+'_01']}
-function lanaSeqOn(){return ultSeqOn('sword')}
 let ultSeqC=null;
 function drawUltSeq(g,id){
   const L=ULT_SEQ[id],U=FX[L.fx],q=SEQ[L.n];if(!U||!q||!q.n||!ultSeqOn(id))return;
@@ -3115,33 +3102,6 @@ function drawUltSeq(g,id){
   g.globalCompositeOperation='lighter';g.globalAlpha=A*L.add;g.drawImage(cC,x,y,w,h);
   g.restore();
 }
-function lanaUA(t,a0,a1,a2){const f=LANA_U.fade;return t<a0?0:t<a0+f?(t-a0)/f:t<a1?1:t<a2?1-(t-a1)/(a2-a1):0}
-// 全画面の絵の置き場所：幅は戦場の1.12倍（左右を少し切る）、絵の縦42%（爆発の列）を戦場の中ほどに合わせる
-function lanaURect(){const w=W*1.12,h=w*1.5;return{x:(W-w)/2,y:B.lineY*0.5-h*0.42,w,h}}
-function drawLanaUlt(g,layer){
-  const U=FX.lanaU;if(!U)return;
-  if(lanaSeqOn()){if(layer==='top')drawUltSeq(g,'sword');return}
-  const t=U.t,R=lanaURect();
-  g.save();
-  if(layer==='floor'){
-    LANA_U.f.forEach((q,i)=>{const a=lanaUA(t,q[0],q[1],q[2]);if(a<=0.01)return;const im=vtex('lanaU_f'+(i+1));if(!im)return;
-      const k=1+0.05*Math.min(1,(t-q[0])/1.2),pu=i===3?0.85+0.15*Math.sin(t*6):1,w=R.w*k,h=R.h*k,x=R.x-(w-R.w)/2,y=R.y-(h-R.h)*0.42;
-      g.globalCompositeOperation='source-over';g.globalAlpha=a*0.92*pu;g.drawImage(im,x,y,w,h);
-      g.globalCompositeOperation='lighter';g.globalAlpha=a*0.22*pu;g.drawImage(im,x,y,w,h)});
-  }else if(layer==='top'){
-    LANA_U.t.forEach((q,i)=>{const a=lanaUA(t,q[1],q[2],q[3]);if(a<=0.01)return;const im=vtex('lanaU_'+q[0]);if(!im)return;
-      const u=Math.min(1,(t-q[1])/(q[3]-q[1])),k=(i===1?1.08:1)+0.1*u,w=R.w*k,h=R.h*k,x=R.x-(w-R.w)/2,y=R.y-(h-R.h)*0.55-R.h*0.06*u;
-      g.globalCompositeOperation='source-over';g.globalAlpha=a;g.drawImage(im,x,y,w,h);
-      g.globalCompositeOperation='lighter';g.globalAlpha=a*0.3;g.drawImage(im,x,y,w,h)});
-  }else if(layer==='aura'){ // ラナの後ろで渦巻くオーラ：4コマを毎秒14コマで溶かしながら回す
-    const o=B.allies.find(z=>z.d.id==='sword'&&z.alive),q=LANA_U.aura,a=lanaUA(t,q[0],q[1],q[2]);
-    if(o&&a>0.01){const fr=t*14,i=Math.floor(fr)%4,f=fr-Math.floor(fr),h=ALLY_H*1.75,w=h/1.5,x=o.x-w/2,y=o.y-h*0.86;
-      for(const[j,al]of[[i,1-f],[(i+1)%4,f]]){const im=vtex('lanaU_a'+(j+1));if(!im)continue;
-        g.globalCompositeOperation='source-over';g.globalAlpha=a*al*0.9;g.drawImage(im,x,y,w,h);
-        g.globalCompositeOperation='lighter';g.globalAlpha=a*al*0.35;g.drawImage(im,x,y,w,h)}}
-  }
-  g.restore();
-}
 function fxJudge(){
   FX.sh.push({k:'flash',x:W/2,y:H*0.4,r:W*1.4,t:0,life:0.55,col:'#c22a2a'});
   FX.sh.push({k:'ring',x:W/2,y:B.lineY,r0:20,r1:H,t:0,life:0.7,col:'#ff5a4a',w:8});
@@ -3154,8 +3114,7 @@ function updFX(dt){
   FX.shake*=Math.pow(0.0006,dt);if(FX.breach>0)FX.breach-=dt*1.6;
   for(let i=FX.parts.length-1;i>=0;i--){const p=FX.parts[i];p.t+=dt;if(p.t>=p.life){FX.parts[i]=FX.parts[FX.parts.length-1];FX.parts.pop();continue}const k=Math.exp(-p.drag*dt);p.vx*=k;p.vy*=k;p.vy+=p.grav*dt;p.x+=p.vx*dt;p.y+=p.vy*dt}
   for(let i=FX.sh.length-1;i>=0;i--){const s=FX.sh[i];s.t+=dt;if(s.t>=s.life)FX.sh.splice(i,1)}
-  if(FX.lanaU){FX.lanaU.t+=dt;if(FX.lanaU.t>4.4){FX.lanaU=null;seqFree('lanaU')}}
-  if(FX.blueU){FX.blueU.t+=dt;if(FX.blueU.t>ULT_SEQ.blue.end){FX.blueU=null;seqFree('blueU')}}
+  for(const id in ULT_SEQ){const L=ULT_SEQ[id],U=FX[L.fx];if(U){U.t+=dt;if(U.t>L.end){FX[L.fx]=null;seqFree(L.n)}}}
   for(let i=FX.dust.length-1;i>=0;i--){const d=FX.dust[i];d.t+=dt;if(d.t>=d.life){FX.dust[i]=FX.dust[FX.dust.length-1];FX.dust.pop();continue}
     const k=Math.exp(-d.drag*dt);d.vx*=k;d.vy*=k;d.vy+=d.grav*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.rot+=d.vr*dt;if(d.wob)d.x+=Math.sin(d.t*d.wob+d.ph)*12*dt}
   for(let i=FX.ghosts.length-1;i>=0;i--){const o=FX.ghosts[i];o.t+=dt;if(o.t>=o.life)FX.ghosts.splice(i,1)}
@@ -3306,7 +3265,6 @@ function render(T){
   if(FX.shake>0.3)g.translate((Math.random()-0.5)*FX.shake,(Math.random()-0.5)*FX.shake);
   for(const s of FX.sh)if(s.k==='decal'){g.globalAlpha=(1-s.t/s.life)*0.5;g.fillStyle=s.col;g.beginPath();g.ellipse(s.x,s.y,s.r*0.9,s.r*(s.flat||0.6),0,0,TAU);g.fill()}else if(s.k==='tex'&&s.ly==='floor')drawTex(g,s);
   for(const z of B.zones)drawZone(g,z,T);
-  drawLanaUlt(g,'floor');
   g.globalAlpha=1;
   const list=B.enemies.slice().sort((a,b)=>a.y-b.y);
   for(const e of list)if(!e.dead)drawEnemy(g,e,T);
@@ -3315,10 +3273,8 @@ function render(T){
     g.save();g.globalAlpha=1-u;g.translate(o.x,o.y+u*10);blit(g,set,f,o.h);g.globalCompositeOperation='lighter';g.globalAlpha=(1-u)*0.45;blit(g,set,f,o.h);g.restore();
   }
   for(const s of FX.sh)if(s.k==='tex'&&s.ly==='top')drawTex(g,s);
-  drawLanaUlt(g,'aura');
   for(const a of B.allies)drawAlly(g,a,T);
-  drawLanaUlt(g,'top');
-  if(FX.blueU)drawUltSeq(g,'blue');
+  for(const id in ULT_SEQ)if(FX[ULT_SEQ[id].fx])drawUltSeq(g,id); // 超必殺の連番（味方の上に1枚）
   for(const s of FX.sh)if(s.k==='lv')drawLV(g,s);else if(s.k==='sisw')drawSisWind(g,s);else if(s.k==='magc')drawMagCircle(g,s);else if(s.k==='magb')drawMagBeam(g,s);
   drawDust(g,'normal');
   if(tuning)drawTunePreview(g,T);
@@ -4913,7 +4869,7 @@ window.NARAKU={
   go(id){if(!stepTo(id))return false;arrive();return mode},
   info:id=>nodeInfo(id),light:()=>lightState(),nodeXY:id=>{R.camY=null;const q=mapXY(R.map.nodes[id]);return{x:q.x/W,y:q.y/H}},choose:chooseNode,buy:buyItem,leave:leaveNode,next:afterVictory,giveUp,
   retreat(){if(mode!=='map'||R.walk)return false;endRun('return');return true},
-  useCard,startRewind,updRewind,dropSig,dropFor,get ULT(){return ULT},ULT_DEF,startUlt,SEQ,LANA_SEQ,ULT_SEQ,
+  useCard,startRewind,updRewind,dropSig,dropFor,get ULT(){return ULT},ULT_DEF,startUlt,SEQ,ULT_SEQ,
   pick:chooseUp,
   grant(id){const u=UPS.find(x=>x.id===id);if(!u||!B)return false;applyUp(u);return true},
   // bot=スキルを撃つ自動操縦 / pick=強化を選ぶ関数（提示3枚と B を受け取り番号を返す。省略すると何も取らない）

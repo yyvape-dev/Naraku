@@ -1,5 +1,5 @@
 """超必殺の着弾エフェクトを、明けた瞬間からの時刻で撮る（描画の時計を手動で進める）。
-   使い方: python3 tools/dev/ultfx.py <full.html> <出力.png> <キャラ> [時刻(秒,カンマ区切り)] [URLの問い合わせ 例: lana=old] [画面 例: 375x667]
+   使い方: python3 tools/dev/ultfx.py <full.html> <出力.png> <キャラ> [時刻(秒,カンマ区切り)] [URLの問い合わせ（空でよい）] [画面 例: 375x667]
    連番（SEQ）を使う技は、カットインの間に展開が終わるのを待ってから撮る"""
 import sys,os
 from playwright.sync_api import sync_playwright
