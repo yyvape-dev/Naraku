@@ -1769,15 +1769,16 @@ function fxSkillTex(c,x,y,r,hh,hits){
       fxTex({n:'ice',ly:'top',x:e.x,y:e.y+4,w:Math.max(30,hh2*0.72),ay:0.95,life:Math.max(0.6,d),s0:0.3,s1:1,fi:0.03,fo:4})}
   }
 }
-/* 戦場の背景（真上から見た床の絵）。assets/bg_<キー>.webp がビルド時に差し込まれる。無ければコードで描いた格子の床になる。
+/* 戦場の背景（床の絵）。assets/bg_<キー>.webp がビルド時に差し込まれる。無ければコードで描いた格子の床になる。
+   絵の比率は問わない（buildBG が縦横比を保って戦場いっぱいに敷き、はみ出す分は中央基準で切る）。真上から見た床でも、奥へ伸びる見下ろしの絵でもよい。
    橋や穴のある絵は敵が宙に浮いて見えるので使わない。門の光・防衛線・周辺の暗さは buildBG がコードで重ねる */
 const BGS=/*__BGS_START__*/{}/*__BGS_END__*/;
-const BG_NAMES={corridor:'石畳の回廊',crypt:'地下墓地',roots:'腐れ根の洞',chapel:'水没した聖堂',ash:'灰の焦土',ritual:'儀式の間'};
+const BG_NAMES={camp:'襲われた野営地',totem:'骨飾りの祭祀道',corridor:'石畳の回廊',plaza:'陥落した広場',chapel:'崩れた聖堂',crypt:'地下墓地',roots:'腐れ根の洞',ash:'灰の焦土',cavern:'地底湖の洞',magma:'業火の洞',ritual:'儀式の間'};
 const BG_KEYS=Object.keys(BG_NAMES).filter(k=>BGS[k]);
 let bgPick='auto'; // 検証用の戦場指定（NARAKU.setBg）。auto は戦闘シードから決める。探索中の戦場は bgFor がマップの深さで決める
 function pickBg(seed){return!BG_KEYS.length?null:BGS[bgPick]?bgPick:BG_KEYS[hash32(seed^0x51ED270B)%BG_KEYS.length]}
 // 探索中の戦場は、マップの深さで決まる（浅い順に並べ、ボスは儀式の間。まだ無い絵は、ある中から選ぶ）
-const BG_DEPTH=['corridor','crypt','roots','chapel','ash'];
+const BG_DEPTH=['camp','totem','corridor','plaza','chapel','crypt','roots','ash','cavern','magma'];
 function bgFor(depth,kind){
   if(!BG_KEYS.length)return null;
   if(kind==='boss'&&BGS.ritual)return'ritual';
