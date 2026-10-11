@@ -2025,7 +2025,7 @@ const FX={parts:[],dust:[],sh:[],floats:[],ghosts:[],shake:0,banner:null,breach:
 const cv=$('#cv'),ctx=cv.getContext('2d'),app=$('#app');
 
 function layout(){B.lineY=H-LINE_OFF;B.allies.forEach(a=>{a.x=W*[0.18,0.5,0.82][a.slot];a.y=H-FOOT_OFF})}
-function clearFX(){FX.parts.length=0;FX.dust.length=0;FX.ghosts.length=0;FX.sh.length=0;FX.floats.length=0;FX.shake=0;FX.banner=null;FX.breach=0;FX.cut=null;FX.lanaU=null;seqFree('lanaU');if(typeof BAR!=='undefined')BAR.emb.length=0}
+function clearFX(){FX.parts.length=0;FX.dust.length=0;FX.ghosts.length=0;FX.sh.length=0;FX.floats.length=0;FX.shake=0;FX.banner=null;FX.breach=0;FX.cut=null;FX.lanaU=null;FX.blueU=null;seqFree('lanaU');seqFree('blueU');if(typeof BAR!=='undefined')BAR.emb.length=0}
 
 function newBattle(seed){
   const rs=mulberry32(seed),rc=mulberry32(hash32(seed^0x5A5A5A5A)),K=BKINDS[BOPT.kind],dep=BOPT.depth||0,fl=(BOPT.floor||1)-1;
@@ -2543,7 +2543,7 @@ const ULT_DEF={
     const v=CARDS.find(o=>o.id==='mg_void'),f=CARDS.find(o=>o.id==='mg_inferno'),hh=B.lineY*0.5/B.M.skR;
     B.impacts.push({t:0.05,c:Object.assign({},v,{shape:'row',hh,dmg:40,freeze:3,fx:'full'}),x:W/2,y:B.lineY*0.5,k:1});
     B.impacts.push({t:2.4,c:Object.assign({},f,{shape:'row',hh,dmg:230,fx:'full'}),x:W/2,y:B.lineY*0.5,k:1})}},
-  blue:  {name:'斬月三日月',col:'#4fc3f7',fire(a){const b=CARDS.find(o=>o.id==='bl_moon'),hh=B.lineY/6/B.M.skR,c=Object.assign({},b,{hh,dmg:120});for(let i=0;i<3;i++)B.impacts.push({t:0.05+i*0.22,c,x:W/2,y:B.lineY*(5-2*i)/6,k:1})}}
+  blue:  {name:'斬月三日月',col:'#4fc3f7',fire(a){const b=CARDS.find(o=>o.id==='bl_moon'),hh=B.lineY/6/B.M.skR,c=Object.assign({},b,{hh,dmg:120,ult:'blue'});if(ultSeqOn('blue'))FX.blueU={t:0};for(let i=0;i<3;i++)B.impacts.push({t:0.05+i*0.22,c,x:W/2,y:B.lineY*(5-2*i)/6,k:1})}}
 };
 let ULT=null;const ULT_DUR=1.3;
 // 狐火の着弾点：防衛線に近い敵から順に。足りなければ戦場に散らす（乱数は使わない）
@@ -2562,7 +2562,7 @@ const ULT_POS={x:.55,y:.36,face:.27};
 function startUlt(a){
   const id=a.d.id,def=ULT_DEF[id];if(!def)return;
   B.ultUsed[id]=true;aim.on=false;B.sel=null;FX.cut=null;
-  if(id==='sword'&&lanaSeqOn())seqLoad('lanaU'); // 連番はカットインの1.3秒の間に展開しておく
+  if(ultSeqOn(id))seqLoad(ULT_SEQ[id].n); // 連番はカットインの1.3秒の間に展開しておく
   const el=$('#ult'),AW=el.parentNode.clientWidth||W,AH=el.parentNode.clientHeight||H;
   let im=ULT_IMG[id],art=ULT_ART[id]||{fx:.5,fy:.35,fw:.3},ar=16/9;
   if(!im){const src=UI['card_'+id]||CUTS[id]||'';im=new Image();im.alt='';if(src)im.src=src;art={fx:.5,fy:.33,fw:.3};ar=1.5}
@@ -2612,6 +2612,7 @@ function impact(c,x,y,k){
   }
   if(c.healFlat)for(const a of B.allies)if(a.alive){a.hp=Math.min(a.max,a.hp+c.healFlat*k);fxSpark(a.x,a.y-64,'#bff0c0',6)}
   if(c.zone)B.zones.push({x,hw,t:c.zone,life:c.zone,tick:0.5,dps:c.zdps*B.M.skDmg*k*(ow?ow.sk:1),c});
+  if(c.ult==='blue'&&ultSeqOn('blue')){FX.shake=Math.min(16,FX.shake+7);return} // 斬月三日月の連番：絵は連番に任せ、横一列の光の帯は描かない（揺れだけ）
   if(c.fx==='full')fxFull(c.pal);else if(c.shape==='row')fxRow(y,hh,c.pal);else if(c.shape==='col')(c.ult==='sword'?ultLanaCol:fxCol)(x,hw,c.pal);else fxExplosion(x,y,r,c.pal);
   if(c.fx==='full')return;
   if(c.freeze){const hits=[];for(const e of B.enemies)if(!e.dead&&e.frzT>0&&Math.hypot(e.x-x,e.y-16-y)<=r+e.d.r*e.sc)hits.push(e);fxSkillTex(c,x,y,r,hh,hits)}
@@ -3076,27 +3077,39 @@ function ultLanaCol(x,hw,pal){ // 1列ずつの着弾：絵は全画面の層に
   dustBurst('shard',x,y1*0.45,5,{ang:-Math.PI/2,spread:2.2,v0:80,v1:240,jit:hw,l0:0.4,l1:0.4,spin:14,p:{drag:2,grav:420,w:2.5+Math.random()*2.5,c0:K.shard,c1:K.ring}});
   FX.shake=Math.min(16,FX.shake+6);
 }
-/* ---- 天地開闢の連番版（2026-10-11）。ユーザーが動画AIの動画から選んだ48コマを、明けた瞬間から4秒（毎秒12コマ）で1枚ずつ送る。
-   層は1枚だけ（味方の上）。床・上・オーラの旧い絵と、列ごとの火の筋・地割れの帯は使わない。URLに ?lana=old を付けると旧版（止め絵7枚）に戻る。
+/* ---- 超必殺の連番版（2026-10-11）。ユーザーが動画AIの動画から選んだ48コマを、明けた瞬間から1枚ずつ送る（ラナ＝4秒・毎秒12コマ／アベニウス＝6秒・毎秒8コマ）。
+   層は1枚だけ（味方の上）。ダメージの場所をコードで描く演出（列ごとの火の筋・地割れの帯・横一列の光の帯など）は、連番のときは出さない（揺れだけ）。
+   URLに ?ult=old を付けると旧版に戻る（?lana=old でも同じ）。
    重ね方：抜き（黒＋不透明度）を普通に重ねて戦場を暗くし、その上に光を加算で足す。下端は防衛線の手前から消す（味方に被せない）。
+   mix＝コマの間を溶かす割合（0＝溶かさず1枚ずつ／1＝次のコマへ常に溶かしながら送る。毎秒8コマのアベニウスは1）。
    見た目だけ（戦闘の結果は impact と B.zones のまま） */
-const LANA_SEQ={fps:12,fin:0.08,out:[3.55,4.1],mat:1,add:1,fadeY:[-46,26],cx:0.5,cy:0.48,wide:1.12};
-const LANA_OLD=/[?&]lana=old\b/.test(location.search);
-function lanaSeqOn(){return !LANA_OLD&&!!SEQS.lanaU_01}
-let lanaSeqC=null;
-function drawLanaSeq(g){
-  const U=FX.lanaU,q=SEQ.lanaU;if(!U||!q||!q.n)return;
-  const L=LANA_SEQ,t=U.t,i=Math.min(q.n-1,Math.floor(t*L.fps)),im=q.im[i],mt=q.mt[i];if(!im)return;
+const ULT_SEQ={ // n＝素材の名前 / fx＝FX の時計の名前 / fps / fin＝現れる秒 / out＝[消え始め,消え終わり] / end＝時計を止める秒 / fadeY＝下端を消す範囲（防衛線からの距離） / cx,cy＝コマの中のどこを戦場の中ほどに置くか / wide＝戦場の幅の何倍にするか
+  sword:{n:'lanaU',fx:'lanaU',fps:12,fin:0.08,out:[3.55,4.1],end:4.4,mat:1,add:1,mix:0,fadeY:[-46,26],cx:0.5,cy:0.48,wide:1.12},
+  blue: {n:'blueU',fx:'blueU',fps:8, fin:0.08,out:[5.3,6.0], end:6.05,mat:1,add:1,mix:1,fadeY:[-46,26],cx:0.5,cy:0.5,wide:1.12}};
+const LANA_SEQ=ULT_SEQ.sword;
+const ULT_OLD=/[?&](ult|lana)=old\b/.test(location.search);
+function ultSeqOn(id){const L=ULT_SEQ[id];return !!L&&!ULT_OLD&&!!SEQS[L.n+'_01']}
+function lanaSeqOn(){return ultSeqOn('sword')}
+let ultSeqC=null;
+function drawUltSeq(g,id){
+  const L=ULT_SEQ[id],U=FX[L.fx],q=SEQ[L.n];if(!U||!q||!q.n||!ultSeqOn(id))return;
+  const t=U.t,ft=t*L.fps,i=Math.min(q.n-1,Math.floor(ft)),im=q.im[i],mt=q.mt[i];if(!im)return;
   const A=Math.min(1,t/L.fin)*(t<L.out[0]?1:Math.max(0,1-(t-L.out[0])/(L.out[1]-L.out[0])));if(A<=0.01)return;
+  const im2=i+1<q.n?q.im[i+1]:null,mt2=i+1<q.n?q.mt[i+1]:null,fb=L.mix>0&&im2?Math.max(0,Math.min(1,(ft-i-(1-L.mix))/L.mix)):0; // 次のコマへ溶かす量
   const fw=im.width||416,fh=im.height||752,s=Math.max(W*L.wide/fw,B.lineY/fh),w=fw*s,h=fh*s,x=W*L.cx-w/2,y=B.lineY*0.5-h*L.cy;
   const y0=(B.lineY+L.fadeY[0]-y)/h,y1=(B.lineY+L.fadeY[1]-y)/h; // 下端のぼかし（コマの中の割合）
-  if(!lanaSeqC){lanaSeqC=[document.createElement('canvas'),document.createElement('canvas')];
-    lanaSeqC[0].width=fw;lanaSeqC[0].height=fh;lanaSeqC[1].width=fw>>1;lanaSeqC[1].height=fh>>1}
-  const[cC,cM]=lanaSeqC,xC=cC.getContext('2d'),xM=cM.getContext('2d'),a0=Math.max(0,Math.min(0.999,y0)),a1=Math.max(a0+0.001,Math.min(1,y1));
-  xC.globalCompositeOperation='source-over';xC.clearRect(0,0,cC.width,cC.height);xC.drawImage(im,0,0,cC.width,cC.height);
+  if(!ultSeqC||ultSeqC[0].width!==fw){ultSeqC=[document.createElement('canvas'),document.createElement('canvas')];
+    ultSeqC[0].width=fw;ultSeqC[0].height=fh;ultSeqC[1].width=fw>>1;ultSeqC[1].height=fh>>1}
+  const[cC,cM]=ultSeqC,xC=cC.getContext('2d'),xM=cM.getContext('2d'),a0=Math.max(0,Math.min(0.999,y0)),a1=Math.max(a0+0.001,Math.min(1,y1));
+  // 2枚を足し合わせる（lighter）と、ちょうど割合どおりに混ざる（普通に重ねると、溶かす途中で一瞬薄くなる）
+  xC.globalAlpha=1;xC.globalCompositeOperation='source-over';xC.clearRect(0,0,cC.width,cC.height);xC.globalCompositeOperation='lighter';
+  xC.globalAlpha=1-fb;xC.drawImage(im,0,0,cC.width,cC.height);if(fb>0){xC.globalAlpha=fb;xC.drawImage(im2,0,0,cC.width,cC.height)}
+  xC.globalAlpha=1;xC.globalCompositeOperation='source-over';
   if(y0<1){const gr=xC.createLinearGradient(0,0,0,cC.height);gr.addColorStop(a0,'rgba(0,0,0,0)');gr.addColorStop(a1,'#000');xC.fillStyle=gr;xC.fillRect(0,0,cC.width,cC.height)}
   g.save();
-  if(mt){xM.globalCompositeOperation='source-over';xM.clearRect(0,0,cM.width,cM.height);xM.drawImage(mt,0,0,cM.width,cM.height);
+  if(mt){xM.globalAlpha=1;xM.globalCompositeOperation='source-over';xM.clearRect(0,0,cM.width,cM.height);xM.globalCompositeOperation='lighter';
+    xM.globalAlpha=mt2&&fb>0?1-fb:1;xM.drawImage(mt,0,0,cM.width,cM.height);if(mt2&&fb>0){xM.globalAlpha=fb;xM.drawImage(mt2,0,0,cM.width,cM.height)}
+    xM.globalAlpha=1;
     if(y0<1){const gr=xM.createLinearGradient(0,0,0,cM.height);gr.addColorStop(a0,'rgba(0,0,0,0)');gr.addColorStop(a1,'#000');xM.globalCompositeOperation='destination-out';xM.fillStyle=gr;xM.fillRect(0,0,cM.width,cM.height)}
     g.globalCompositeOperation='source-over';g.globalAlpha=A*L.mat;g.drawImage(cM,x,y,w,h)}
   g.globalCompositeOperation='lighter';g.globalAlpha=A*L.add;g.drawImage(cC,x,y,w,h);
@@ -3107,7 +3120,7 @@ function lanaUA(t,a0,a1,a2){const f=LANA_U.fade;return t<a0?0:t<a0+f?(t-a0)/f:t<
 function lanaURect(){const w=W*1.12,h=w*1.5;return{x:(W-w)/2,y:B.lineY*0.5-h*0.42,w,h}}
 function drawLanaUlt(g,layer){
   const U=FX.lanaU;if(!U)return;
-  if(lanaSeqOn()){if(layer==='top')drawLanaSeq(g);return}
+  if(lanaSeqOn()){if(layer==='top')drawUltSeq(g,'sword');return}
   const t=U.t,R=lanaURect();
   g.save();
   if(layer==='floor'){
@@ -3142,6 +3155,7 @@ function updFX(dt){
   for(let i=FX.parts.length-1;i>=0;i--){const p=FX.parts[i];p.t+=dt;if(p.t>=p.life){FX.parts[i]=FX.parts[FX.parts.length-1];FX.parts.pop();continue}const k=Math.exp(-p.drag*dt);p.vx*=k;p.vy*=k;p.vy+=p.grav*dt;p.x+=p.vx*dt;p.y+=p.vy*dt}
   for(let i=FX.sh.length-1;i>=0;i--){const s=FX.sh[i];s.t+=dt;if(s.t>=s.life)FX.sh.splice(i,1)}
   if(FX.lanaU){FX.lanaU.t+=dt;if(FX.lanaU.t>4.4){FX.lanaU=null;seqFree('lanaU')}}
+  if(FX.blueU){FX.blueU.t+=dt;if(FX.blueU.t>ULT_SEQ.blue.end){FX.blueU=null;seqFree('blueU')}}
   for(let i=FX.dust.length-1;i>=0;i--){const d=FX.dust[i];d.t+=dt;if(d.t>=d.life){FX.dust[i]=FX.dust[FX.dust.length-1];FX.dust.pop();continue}
     const k=Math.exp(-d.drag*dt);d.vx*=k;d.vy*=k;d.vy+=d.grav*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.rot+=d.vr*dt;if(d.wob)d.x+=Math.sin(d.t*d.wob+d.ph)*12*dt}
   for(let i=FX.ghosts.length-1;i>=0;i--){const o=FX.ghosts[i];o.t+=dt;if(o.t>=o.life)FX.ghosts.splice(i,1)}
@@ -3304,6 +3318,7 @@ function render(T){
   drawLanaUlt(g,'aura');
   for(const a of B.allies)drawAlly(g,a,T);
   drawLanaUlt(g,'top');
+  if(FX.blueU)drawUltSeq(g,'blue');
   for(const s of FX.sh)if(s.k==='lv')drawLV(g,s);else if(s.k==='sisw')drawSisWind(g,s);else if(s.k==='magc')drawMagCircle(g,s);else if(s.k==='magb')drawMagBeam(g,s);
   drawDust(g,'normal');
   if(tuning)drawTunePreview(g,T);
@@ -4898,7 +4913,7 @@ window.NARAKU={
   go(id){if(!stepTo(id))return false;arrive();return mode},
   info:id=>nodeInfo(id),light:()=>lightState(),nodeXY:id=>{R.camY=null;const q=mapXY(R.map.nodes[id]);return{x:q.x/W,y:q.y/H}},choose:chooseNode,buy:buyItem,leave:leaveNode,next:afterVictory,giveUp,
   retreat(){if(mode!=='map'||R.walk)return false;endRun('return');return true},
-  useCard,startRewind,updRewind,dropSig,dropFor,get ULT(){return ULT},ULT_DEF,startUlt,SEQ,LANA_SEQ,
+  useCard,startRewind,updRewind,dropSig,dropFor,get ULT(){return ULT},ULT_DEF,startUlt,SEQ,LANA_SEQ,ULT_SEQ,
   pick:chooseUp,
   grant(id){const u=UPS.find(x=>x.id===id);if(!u||!B)return false;applyUp(u);return true},
   // bot=スキルを撃つ自動操縦 / pick=強化を選ぶ関数（提示3枚と B を受け取り番号を返す。省略すると何も取らない）
