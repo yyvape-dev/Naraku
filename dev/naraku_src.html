@@ -1178,10 +1178,10 @@ function seqLoad(name){
 }
 function seqFree(name){const q=SEQ[name];if(!q)return;delete SEQ[name];for(const a of[q.im,q.mt])for(const b of a)if(b&&b.close)b.close()}
 /* 超必殺の連番の設定（描き方は drawUltSeq の説明を参照） */
-const ULT_SEQ={ // n＝素材の名前 / fx＝FX の時計の名前 / fps / fin＝現れる秒 / out＝[消え始め,消え終わり] / end＝時計を止める秒 / fadeY＝下端を消す範囲（防衛線からの距離） / cx,cy＝コマの中のどこを戦場の中ほどに置くか / wide＝戦場の幅の何倍にするか
-  sword:{n:'lanaU',fx:'lanaU',fps:12,fin:0.08,out:[3.55,4.1],end:4.4,mat:1,add:1,mix:0,fadeY:[-46,26],cx:0.5,cy:0.48,wide:1.12},
-  blue: {n:'blueU',fx:'blueU',fps:8, fin:0.08,out:[5.3,6.0], end:6.05,mat:1,add:1,mix:1,fadeY:[-46,26],cx:0.5,cy:0.5,wide:1.12},
-  fox:  {n:'foxU', fx:'foxU', fps:16,fin:0.08,out:[2.7,3.0], end:3.05,mat:1,add:1,mix:0,fadeY:[-46,26],cx:0.5,cy:0.5,wide:1.12}};
+const ULT_SEQ={ // n＝素材の名前 / fx＝FX の時計の名前 / fps / fin＝現れる秒 / out＝[消え始め,消え終わり] / end＝時計を止める秒 / fadeY＝下端を消す範囲（アリーナの下端からの距離。絵は味方の後ろまで届く） / lit＝味方が受ける光の色（c＝加算の色、d＝暗く染める色・任意） / cx,cy＝コマの中のどこを戦場の中ほどに置くか / wide＝戦場の幅の何倍にするか
+  sword:{n:'lanaU',fx:'lanaU',fps:12,fin:0.08,out:[3.55,4.1],end:4.4,mat:1,add:1,mix:0,fadeY:[-34,0],cx:0.5,cy:0.48,wide:1.12,lit:{c:'#ff2a1a',d:'#1e0203'}},
+  blue: {n:'blueU',fx:'blueU',fps:8, fin:0.08,out:[5.3,6.0], end:6.05,mat:1,add:1,mix:1,fadeY:[-34,0],cx:0.5,cy:0.5,wide:1.12,lit:{c:'#4cc4ff'}},
+  fox:  {n:'foxU', fx:'foxU', fps:16,fin:0.08,out:[2.7,3.0], end:3.05,mat:1,add:1,mix:0,fadeY:[-34,0],cx:0.5,cy:0.5,wide:1.12,lit:{c:'#ff3048'}}};
 function ultSeqOn(id){const L=ULT_SEQ[id];return !!L&&!!SEQS[L.n+'_01']}
 const BFS=/*__BFS_START__*/{}/*__BFS_END__*/;
 const BF={};for(const k in BFS){const im=new Image();im.src=BFS[k];BF[k]=im}
@@ -3076,17 +3076,55 @@ function ultLanaCol(x,hw,pal){ // 天地開闢の1列ずつの着弾：絵は連
 /* ---- 超必殺の連番版（2026-10-11）。ユーザーが動画AIの動画から選んだ48コマを、明けた瞬間から1枚ずつ送る（ラナ＝4秒・毎秒12コマ／アベニウス＝6秒・毎秒8コマ）。
    層は1枚だけ（味方の上）。ダメージの場所をコードで描く演出（列ごとの火の筋・地割れの帯・横一列の光の帯など）は、連番のときは出さない（揺れだけ）。
    連番の素材（SEQS）が無いときだけ、従来のコード描画（縦一列・横一列の光）で動く。旧い止め絵の版（床・上・オーラ）は 2026-10-11 に削除した。
-   重ね方：抜き（黒＋不透明度）を普通に重ねて戦場を暗くし、その上に光を加算で足す。下端は防衛線の手前から消す（味方に被せない）。
+   重ね方：抜き（黒＋不透明度）を普通に重ねて戦場を暗くし、その上に光を加算で足す。味方の後ろに描き、アリーナの下端で消す。味方には litAlly で光の色を乗せる。
    mix＝コマの間を溶かす割合（0＝溶かさず1枚ずつ／1＝次のコマへ常に溶かしながら送る。毎秒8コマのアベニウスは1）。
    見た目だけ（戦闘の結果は impact と B.zones のまま） */
-let ultSeqC=null;
+let ultSeqC=null,ULTLIT=null,ultLumC=null;
+/* 味方が受ける光：コマの「味方の立つ帯」（足元〜身長1.1倍の高さ）の明るさを、横12区画で測って覚えておく（コマごとに1回だけ） */
+function ultLum(q,i,x,y,w,h){
+  if(!q.lum||q.lumH!==H){q.lum=[];q.lumH=H}
+  if(q.lum[i])return q.lum[i];
+  const im=q.im[i];if(!im)return null;
+  if(!ultLumC){ultLumC=document.createElement('canvas');ultLumC.width=48;ultLumC.height=8}
+  const c=ultLumC.getContext('2d',{willReadFrequently:true}),top=H-FOOT_OFF-ALLY_H*1.1,bh=ALLY_H*1.1;
+  c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,48,8);c.setTransform(48/W,0,0,8/bh,0,-top*8/bh);c.drawImage(im,x,y,w,h);
+  const d=c.getImageData(0,0,48,8).data,v=[];
+  for(let k=0;k<12;k++){let sum=0;for(let yy=0;yy<8;yy++)for(let xx=k*4;xx<k*4+4;xx++){const o=(yy*48+xx)*4;sum+=Math.max(d[o],d[o+1],d[o+2])}v.push(sum/(32*255))}
+  // コマ全体の明るさ（絵の下端が黒く溶けていても、画面が光っている間は味方も照らされる）
+  c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,48,8);c.drawImage(im,0,0,48,8);const e=c.getImageData(0,0,48,8).data;let m=0;for(let o=0;o<e.length;o+=4)m+=Math.max(e[o],e[o+1],e[o+2]);v.all=m/(384*255);
+  return q.lum[i]=v;
+}
+/* 味方に光を当てる：足元から上へ薄れる色を、背面の絵の形だけに乗せる（d＝先に暗く染める＝ラナの黒赤） */
+let litC=null;
+function litAlly(g,a,set,f,h){
+  const U=ULTLIT;if(!U||!U.v||!a.alive)return;
+  const k=Math.max(0,Math.min(11,Math.floor(a.x/W*12))),amt=Math.min(1,Math.max(U.v[k]*1.7,U.v.all*1.6))*U.A;if(amt<0.03)return;
+  const fr=set.frames[f%set.frames.length],s=h/set.refH,ax=CFG.fix?fr.ax:fr.rax,ay=CFG.fix?fr.ay:fr.ray,cw=fr.c.width,ch=fr.c.height;
+  if(!litC)litC=document.createElement('canvas');if(litC.width<cw)litC.width=cw;if(litC.height<ch)litC.height=ch;
+  const c=litC.getContext('2d');
+  const paint=col=>{c.globalCompositeOperation='source-over';c.globalAlpha=1;c.clearRect(0,0,litC.width,litC.height);c.drawImage(fr.c,0,0);
+    const gr=c.createLinearGradient(0,ay,0,ay-set.refH*0.85);gr.addColorStop(0,col);gr.addColorStop(0.45,col+'88');gr.addColorStop(1,col+'00');
+    c.globalCompositeOperation='source-atop';c.fillStyle=gr;c.fillRect(0,0,cw,ch)};
+  g.save();
+  if(U.L.lit.d){paint(U.L.lit.d);g.globalCompositeOperation='source-over';g.globalAlpha=amt*0.42;g.drawImage(litC,0,0,cw,ch,-ax*s,-ay*s,cw*s,ch*s)}
+  paint(U.L.lit.c);g.globalCompositeOperation='lighter';g.globalAlpha=amt*(U.L.lit.d?0.38:0.5);g.drawImage(litC,0,0,cw,ch,-ax*s,-ay*s,cw*s,ch*s);
+  g.restore();
+}
+/* 足元の光だまり（絵の上に乗るのではなく、味方の影の上に広がる） */
+function litFloor(g,a){
+  const U=ULTLIT;if(!U||!U.v||!a.alive)return;
+  const k=Math.max(0,Math.min(11,Math.floor(a.x/W*12))),amt=Math.min(1,Math.max(U.v[k]*1.7,U.v.all*1.6))*U.A;if(amt<0.03)return;
+  const gr=g.createRadialGradient(a.x,a.y,2,a.x,a.y,44);gr.addColorStop(0,U.L.lit.c);gr.addColorStop(1,U.L.lit.c+'00');
+  g.save();g.globalCompositeOperation='lighter';g.globalAlpha=amt*0.35;g.fillStyle=gr;g.beginPath();g.ellipse(a.x,a.y,44,13,0,0,TAU);g.fill();g.restore();
+}
 function drawUltSeq(g,id){
   const L=ULT_SEQ[id],U=FX[L.fx],q=SEQ[L.n];if(!U||!q||!q.n||!ultSeqOn(id))return;
   const t=U.t,ft=t*L.fps,i=Math.min(q.n-1,Math.floor(ft)),im=q.im[i],mt=q.mt[i];if(!im)return;
   const A=Math.min(1,t/L.fin)*(t<L.out[0]?1:Math.max(0,1-(t-L.out[0])/(L.out[1]-L.out[0])));if(A<=0.01)return;
   const im2=i+1<q.n?q.im[i+1]:null,mt2=i+1<q.n?q.mt[i+1]:null,fb=L.mix>0&&im2?Math.max(0,Math.min(1,(ft-i-(1-L.mix))/L.mix)):0; // 次のコマへ溶かす量
-  const fw=im.width||416,fh=im.height||752,s=Math.max(W*L.wide/fw,B.lineY/fh),w=fw*s,h=fh*s,x=W*L.cx-w/2,y=B.lineY*0.5-h*L.cy;
-  const y0=(B.lineY+L.fadeY[0]-y)/h,y1=(B.lineY+L.fadeY[1]-y)/h; // 下端のぼかし（コマの中の割合）
+  const fw=im.width||416,fh=im.height||752,s=Math.max(W*L.wide/fw,H/fh),w=fw*s,h=fh*s,x=W*L.cx-w/2,y=H*0.5-h*L.cy;
+  const y0=(H+L.fadeY[0]-y)/h,y1=(H+L.fadeY[1]-y)/h;
+  if(L.lit)ULTLIT={L,A,v:ultLum(q,i,x,y,w,h)}; // 下端のぼかし（コマの中の割合）
   if(!ultSeqC||ultSeqC[0].width!==fw){ultSeqC=[document.createElement('canvas'),document.createElement('canvas')];
     ultSeqC[0].width=fw;ultSeqC[0].height=fh;ultSeqC[1].width=fw>>1;ultSeqC[1].height=fh>>1}
   const[cC,cM]=ultSeqC,xC=cC.getContext('2d'),xM=cM.getContext('2d'),a0=Math.max(0,Math.min(0.999,y0)),a1=Math.max(a0+0.001,Math.min(1,y1));
@@ -3203,7 +3241,8 @@ function drawAlly(g,a,T){
   else if(a.animT>=0)f=frameAt(lk.m,nf,Math.min(0.999,a.animT/a.animDur),a.animHit);
   else{const b=Math.sin(T*2.1+a.ph);sy=1+b*0.018;sx=1-b*0.009;rot=Math.sin(T*1.05+a.ph)*0.012} // 待機は1コマ目＋呼吸
   if(B.M.aura)drawAura(g,a,T);
-  g.save();g.translate(a.x+tn.x,a.y+oy+tn.y);g.rotate(rot);g.scale(sx,sy);blit(g,set,lk.seq[f],h);
+  litFloor(g,a);
+  g.save();g.translate(a.x+tn.x,a.y+oy+tn.y);g.rotate(rot);g.scale(sx,sy);blit(g,set,lk.seq[f],h);litAlly(g,a,set,lk.seq[f],h);
   if(a.hitT>0){g.globalCompositeOperation='lighter';g.globalAlpha=0.6;blit(g,set,lk.seq[f],h)}
   g.restore();
   if(!picked){drawSwing(g,a,lk,h,a.x+tn.x,a.y+oy+tn.y);drawFoxBody(g,a,lk,h,a.x+tn.x,a.y+oy+tn.y);drawBlueBody(g,a,lk,h,a.x+tn.x,a.y+oy+tn.y);drawSisterBody(g,a,lk,h,a.x+tn.x,a.y+oy+tn.y);drawMageBody(g,a,lk,h,a.x+tn.x,a.y+oy+tn.y)}
@@ -3275,8 +3314,8 @@ function render(T){
     g.save();g.globalAlpha=1-u;g.translate(o.x,o.y+u*10);blit(g,set,f,o.h);g.globalCompositeOperation='lighter';g.globalAlpha=(1-u)*0.45;blit(g,set,f,o.h);g.restore();
   }
   for(const s of FX.sh)if(s.k==='tex'&&s.ly==='top')drawTex(g,s);
+  ULTLIT=null;for(const id in ULT_SEQ)if(FX[ULT_SEQ[id].fx])drawUltSeq(g,id); // 超必殺の連番（味方の後ろに1枚。味方は光の色を受ける）
   for(const a of B.allies)drawAlly(g,a,T);
-  for(const id in ULT_SEQ)if(FX[ULT_SEQ[id].fx])drawUltSeq(g,id); // 超必殺の連番（味方の上に1枚）
   for(const s of FX.sh)if(s.k==='lv')drawLV(g,s);else if(s.k==='sisw')drawSisWind(g,s);else if(s.k==='magc')drawMagCircle(g,s);else if(s.k==='magb')drawMagBeam(g,s);
   drawDust(g,'normal');
   if(tuning)drawTunePreview(g,T);
