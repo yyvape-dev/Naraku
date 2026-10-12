@@ -640,7 +640,7 @@ img.frm{display:block;width:100%;height:100%}
 .tv-row .nm{font-size:calc(13.5px*var(--lk));font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tv-row .rl{font-size:calc(10px*var(--lk));color:#5a4028;white-space:nowrap;display:flex;align-items:center;gap:3px}
 .tv-row .rl .tv-ic{font-size:calc(13px*var(--lk))}
-.tv-row .gs{font-size:calc(9.5px*var(--lk));color:#6a4a2a;white-space:nowrap}
+.tv-row .gs{font-size:calc(9.5px*var(--lk));color:#6a4a2a;white-space:nowrap;overflow:hidden}
 .tv-row .bs{flex:1;min-width:0}
 .tv-bl{display:flex;justify-content:space-between;font-size:calc(9.5px*var(--lk));line-height:1.2;color:#5a4028}
 .tv-bl b{font-weight:400;color:#3a2412}
@@ -2059,9 +2059,14 @@ function newBattle(seed){
 const itemBase=it=>GEAR_BASE[it.s][it.b];
 const itemTag=it=>it.s==='w'?itemBase(it).t:null;
 const itemPow=it=>Math.max(1,Math.round(it.pw*(1+GCFG.plus*it.n)));
+// 表示は「元値(+強化で伸びた分)」。元値＝強化前（+0）の値。伸びが0なら元値だけ
+const itemBasePow=it=>Math.max(1,Math.round(it.pw));
+const itemUp=it=>itemPow(it)-itemBasePow(it);
+const powTxt=(b,u)=>b+(u>0?'(+'+u+')':'');
+const itemPowTxt=it=>powTxt(itemBasePow(it),itemUp(it));
 const itemAff=it=>it.p&&it.r>0?{a:AFFIX[it.p],v:AFFIX[it.p].v[it.r-1]}:null;
 const itemName=it=>(it.p&&it.r>0?AFFIX[it.p].n:'')+itemBase(it).n+(it.n?' +'+it.n:'');
-function itemLines(it){const o=[SLOTS[it.s].stat+' +'+itemPow(it)];if(it.s==='w')o.push(FAMS[itemTag(it)].name);const f=itemAff(it);if(f)o.push(f.a.f(f.v));return o}
+function itemLines(it){const o=[SLOTS[it.s].stat+' +'+itemPowTxt(it)];if(it.s==='w')o.push(FAMS[itemTag(it)].name);const f=itemAff(it);if(f)o.push(f.a.f(f.v));return o}
 // lv=層と深さ（1層の入口が0、1層の最深部が1、2層の入口が1…）/ boost=格の出やすさ（0=ふつう 1=強敵 2=奈落の主と踏破報酬。英雄以上が確定）
 function mkItem(r,lv,boost){
   const s=r()<0.55?'w':'a',b=Math.floor(r()*GEAR_BASE[s].length);
@@ -2083,6 +2088,8 @@ function gearStats(m){
   }
   return g;
 }
+// キャラの ATK・DFN を「元値(+強化で伸びた分)」で。元値＝合計（gearStats。二つ名の「さらに +」も含む）から強化の伸びを引いたもの
+function gearPowTxt(m,g,s){const k=s==='w'?'atk':'dfn',u=m[s]?itemUp(m[s]):0;return powTxt(g[k]-u,u)}
 const maxHpOf=m=>CHARS[m.id].hp*(1+gearStats(m).hp/100);
 
 /* ---- セーブ（廃屋）。街の蓄え・仲間の状態・探索の途中経過を1つにまとめ、localStorage に自動で書く。
@@ -4170,7 +4177,7 @@ const VIEWS={
     [['spd','攻撃速度','+','%'],['range','射程','+','%'],['crit','会心率','+','%'],['skill','スキル威力','+','%'],['reload','スキル装填','−','%'],['soul','ソウル獲得','+','%'],['hp','最大体力','+','%'],['life','拠点ライフ','+','']].forEach(q=>{if(g[q[0]])ex.push('<div>'+q[1]+'<b>'+q[2]+g[q[0]]+q[3]+'</b></div>')});
     if(g.regen)ex.push('<div>毎秒の回復<b>'+(g.regen/10).toFixed(1)+'%</b></div>');
     townScreen(d.name,d.role,charRow(id,'',false)
-      +'<div class="sgrid"><div>体力<b>'+Math.round(maxHpOf(m))+'</b></div><div>ATK<b>+'+g.atk+'</b></div><div>DFN<b>+'+g.dfn+'</b></div>'+ex.join('')+'</div>'
+      +'<div class="sgrid"><div>体力<b>'+Math.round(maxHpOf(m))+'</b></div><div>ATK<b>+'+gearPowTxt(m,g,'w')+'</b></div><div>DFN<b>+'+gearPowTxt(m,g,'a')+'</b></div>'+ex.join('')+'</div>'
       +'<div class="tw-lead dim">ATK +10 で与えるダメージ +10%（通常攻撃とスキル）。DFN +10 で受けるダメージが約9%減ります。</div>'
       +['w','a'].map(s=>{const it=m[s];return'<div class="tw-sec">'+SLOTS[s].name+'</div><div class="row irow" style="--rc:'+(it?RAR[it.r].col:'#3a2f20')+'"><div class="rb">'+(it?itemHTML(it):'<span class="it" style="--rc:var(--bone-dim)"><b>装備なし</b><small>倉庫から選んで身に着ける</small></span>')+'</div>'
         +'<div class="rx"><button class="mini go" data-go="pick" data-arg="'+id+':'+s+'">替える</button>'+(it?'<button class="mini" data-uneq="'+id+':'+s+'">外す</button>':'')+'</div></div>'}).join(''),'',['party']);
@@ -4375,7 +4382,7 @@ function facSmith(){
         +'<div class="smz ic">'+sockHTML(it)+'</div>'
         +'<div class="smz hd" style="--rc:'+RAR[it.r].col+'"><div class="rk"><span class="bdg">'+RAR[it.r].name+'</span>'+ow+'</div><h3 id="smName">'+itemName(it)+'</h3></div>'
         +'<div class="smz za"><dl>'+ln.map((t,i)=>'<dt>'+(lab[i]||'')+'</dt><dd>'+t+'</dd>').join('')+'</dl></div>'
-        +'<div class="smz zb"><div class="zh">強化結果</div><div class="fac-up">'+(max?'強化値は最大（+'+GCFG.maxPlus+'）':'+'+it.n+' → +'+(it.n+1)+'　'+SLOTS[it.s].stat+'<b>'+pw+'</b>→<b>'+nx+'</b>')+'</div></div>'
+        +'<div class="smz zb"><div class="zh">強化結果</div><div class="fac-up">'+(max?'強化値は最大（+'+GCFG.maxPlus+'）':'+'+it.n+' → +'+(it.n+1)+'　'+SLOTS[it.s].stat+'<b>'+itemPowTxt(it)+'</b>→<b>'+powTxt(itemBasePow(it),nx-itemBasePow(it))+'</b>')+'</div></div>'
         +'<div class="smz zc"><div class="sm-mat"><span class="sl"><i></i></span>'+(SMODE==='brk'?(cur.owner?'装備中は分解できない':'分解で 資材 <b>+'+breakYield(it)+'</b>')
           :max?'これ以上は鍛えられない':'資材 <b'+ng(S.mats,c.mats)+'>'+S.mats+'</b> / '+c.mats+'<span class="gd"><i class="sm-coin"></i><b'+ng(S.gold,c.gold)+'>'+c.gold+'</b></span>')+'</div>'
         +'<div class="fac-acts">'+(SMODE==='brk'?bb+eb:eb+bb)+'</div></div>';
@@ -4383,13 +4390,13 @@ function facSmith(){
     card='<div class="rk" style="--rc:'+RAR[it.r].col+'">'+RAR[it.r].name+(cur.owner?'<small>'+CHARS[cur.owner].name+'が装備中</small>':'')+'</div>'
       +'<h3 style="--rc:'+RAR[it.r].col+'">'+itemName(it)+'</h3>'
       +'<dl>'+ln.map((t,i)=>'<dt>'+(lab[i]||'')+'</dt><dd>'+t+'</dd>').join('')+'</dl>'
-      +'<div class="fac-up">'+(max?'強化値は最大（+'+GCFG.maxPlus+'）':'+'+it.n+' → +'+(it.n+1)+'　'+SLOTS[it.s].stat+'<b>'+pw+'</b>→<b>'+nx+'</b>')+'</div>'
+      +'<div class="fac-up">'+(max?'強化値は最大（+'+GCFG.maxPlus+'）':'+'+it.n+' → +'+(it.n+1)+'　'+SLOTS[it.s].stat+'<b>'+itemPowTxt(it)+'</b>→<b>'+powTxt(itemBasePow(it),nx-itemBasePow(it))+'</b>')+'</div>'
       +'<div class="fac-acts">'+(SMODE==='brk'?bb+eb:eb+bb)+'</div>';
   }
   if(SMART&&!cur)card='<img class="sm-cf" alt="" draggable="false" src="'+UI.sm_card+'"><div class="smz za" style="top:25%;height:64%">'+card+'</div>';
   const cd=$('#facCard');cd.innerHTML=card;if(SMART)fitLine($('#smName'),14,9.5);
   const rows=$('#facRows'),keep=rows.scrollTop;
-  rows.innerHTML=L.length?L.map(q=>{const it=q.it;return'<div class="fac-row'+(it.id===SMSEL?' on':'')+'" data-sel="'+it.id+'" style="--rc:'+RAR[it.r].col+'">'+(SMART?sockHTML(it):'')+'<div class="n">'+itemName(it)+(q.owner?'<small>'+CHARS[q.owner].name+'が装備中</small>':'')+'</div><div class="v">'+SLOTS[it.s].stat+'<b>+'+itemPow(it)+'</b></div></div>'}).join('')
+  rows.innerHTML=L.length?L.map(q=>{const it=q.it;return'<div class="fac-row'+(it.id===SMSEL?' on':'')+'" data-sel="'+it.id+'" style="--rc:'+RAR[it.r].col+'">'+(SMART?sockHTML(it):'')+'<div class="n">'+itemName(it)+(q.owner?'<small>'+CHARS[q.owner].name+'が装備中</small>':'')+'</div><div class="v">'+SLOTS[it.s].stat+'<b>+'+itemPowTxt(it)+'</b></div></div>'}).join('')
     :'<div class="tw-lead">'+(all.length?'この種類の装備はありません。':'まだ装備がありません。奈落で敵を倒すか、宝箱から手に入ります。')+'</div>';
   rows.scrollTop=keep;
   const msg=TMSG?'<div class="tw-msg'+(TBAD?' bad':'')+'">'+TMSG+'</div>':'';
@@ -4432,12 +4439,15 @@ function facTvList(){
     const st=m.collapsed?'dead':pi>=0?'go':'idle';
     h+='<div class="tv-row'+(pi>=0?' on':'')+(m.collapsed?' dead':'')+'" data-tvch="'+id+'" style="top:'+TY[i]+'%">'
       +'<span class="pf"><canvas data-id="'+id+'" width="120" height="160"></canvas></span>'
-      +'<span class="nb"><div class="nm">'+CHARS[id].name+'</div><div class="rl">'+tvIc(TV_ROLE[id])+tvRole(id)+'</div><div class="gs">ATK +'+g.atk+'・DFN +'+g.dfn+'</div></span>'
+      +'<span class="nb"><div class="nm">'+CHARS[id].name+'</div><div class="rl">'+tvIc(TV_ROLE[id])+tvRole(id)+'</div><div class="gs">ATK +'+gearPowTxt(m,g,'w')+'・DFN +'+gearPowTxt(m,g,'a')+'</div></span>'
       +'<span class="bs"><span class="tv-bl">HP<b>'+hp+' / '+mx+'</b></span><div class="tv-bar hp"><i style="width:'+pct(m.hpR*100)+'%"></i></div>'
       +'<span class="tv-bl">狂気<b>'+pct(m.madness)+' / 100</b></span><div class="tv-bar md"><i style="width:'+pct(m.madness)+'%"></i></div></span>'
       +'<button class="tv-chip '+st+'" data-tvpk="'+id+'"'+(m.collapsed?' disabled':'')+'><span>'+(st==='go'?'出撃中':st==='dead'?'崩壊':'待機中')+'</span></button></div>'});
   $('#tvSheet').innerHTML=h;
   facSay();facHit(null);paintFaces();
+  // ATK・DFN の行は「元値(+強化分)」で長くなるので、欄に収まるまで文字を縮める
+  const fitGs=()=>document.querySelectorAll('#tvSheet .tv-row .gs').forEach(e=>{e.style.fontSize='';const f=parseFloat(getComputedStyle(e).fontSize)||9.5;fitLine(e,f,f*.7)});
+  fitGs();requestAnimationFrame(fitGs);
 }
 function facTvChar(id){
   const m=S.roster[id];if(!m){showView('party');return}
@@ -4458,7 +4468,7 @@ function facTvChar(id){
     +'<div class="tvc-nm">'+d.name+'</div><div class="tvc-sub">'+tvRole(id)+'<i>◆</i>'+tvTags(m)+'</div>'
     +'<div class="tvc-st"><div class="ln">HP<div class="tv-bar hp"><i style="width:'+pct(m.hpR*100)+'%"></i></div><b>'+hp+' / '+mx+'</b></div>'
     +'<div class="ln">狂気<div class="tv-bar md"><i style="width:'+pct(m.madness)+'%"></i></div><b>'+pct(m.madness)+' / 100</b></div>'
-    +'<div class="gr"><div>'+tvIc(4)+'攻撃<b>+'+g.atk+'</b></div><div>'+tvIc(3)+'防御<b>+'+g.dfn+'</b></div><div>'+tvIc(6)+'射程<b>'+rl+' '+rg+'</b></div><div>'+tvIc(7)+'属性<b>'+tvTags(m)+'</b></div></div>'
+    +'<div class="gr"><div>'+tvIc(4)+'攻撃<b>+'+gearPowTxt(m,g,'w')+'</b></div><div>'+tvIc(3)+'防御<b>+'+gearPowTxt(m,g,'a')+'</b></div><div>'+tvIc(6)+'射程<b>'+rl+' '+rg+'</b></div><div>'+tvIc(7)+'属性<b>'+tvTags(m)+'</b></div></div>'
     +(ex.length?'<div class="gr ex">'+ex.join('')+'</div>':'')+'</div>'
     +'<div class="tvc-tab">装備</div>'+eq('w',11.4,26.8)+eq('a',53.7,68.2)
     +'<div class="tvc-tab b">人物概要</div><div class="tvc-pr">'+(TV_PROF[id]||d.role)+'</div>'
