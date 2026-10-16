@@ -2,13 +2,13 @@
    使い方: python3 boot.py <配布版.html> <出力png> [切り詰めバイト数]"""
 import sys, os, re
 from playwright.sync_api import sync_playwright
-html=os.path.abspath(sys.argv[1]); out=sys.argv[2]; cut=int(sys.argv[3]) if len(sys.argv)>3 else 0
+html=sys.argv[1] if sys.argv[1].startswith('http') else os.path.abspath(sys.argv[1]); out=sys.argv[2]; cut=int(sys.argv[3]) if len(sys.argv)>3 else 0
 if cut:
     d=open(html,'rb').read()[:cut]; html=out+'.cut.html'; open(html,'wb').write(d)
 with sync_playwright() as p:
     b=p.chromium.launch(); pg=b.new_page(viewport={'width':390,'height':844},device_scale_factor=1)
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)[:120])); pg.on('console',lambda m: errs.append(m.text[:120]) if m.type=='error' else None)
-    pg.goto('file://'+html); pg.wait_for_timeout(600)
+    pg.goto(html if html.startswith('http') else 'file://'+html); pg.wait_for_timeout(600)
     if not cut: pg.evaluate('try{localStorage.clear()}catch(e){}'); pg.reload()   # 前回の記録を消して、最初の起動から始める
     pg.wait_for_timeout(2500 if not cut else 7500)
     title=pg.evaluate("()=>{const s=document.querySelector('#screen');return !s.classList.contains('on')?null:s.querySelector('#hub')?'街（ハブ画面）':s.querySelector('h1,h2').textContent}")
@@ -56,13 +56,18 @@ with sync_playwright() as p:
     print('強化の選択が出た: mode',mode(),'経過',round(pg.evaluate("NARAKU.B.t"),1),'秒')
     pg.wait_for_timeout(600); pg.click('#lvCards .up:nth-child(1)'); pg.wait_for_timeout(1200)
     print('札を選んだ後: mode',mode(),'強化',pg.evaluate("JSON.stringify(NARAKU.B.up)"))
-    c=pg.evaluate("()=>{const el=[...document.querySelectorAll('#hand .card')].find(e=>!e.classList.contains('empty')&&!e.classList.contains('back')&&e.querySelector('.kd,.ki').textContent!=='即時');el.click();return el.querySelector('.nm,.sn').textContent}")
+    c=pg.evaluate("()=>{const el=[...document.querySelectorAll('#hand .card')].find(e=>!e.classList.contains('empty')&&!e.classList.contains('back')&&NARAKU.B.slots[+e.dataset.i].card.kind==='target');el.click();return el.querySelector('.nm,.sn').textContent}")
     k0=pg.evaluate("NARAKU.B.kills"); bx=pg.evaluate("()=>{const r=document.querySelector('#cv').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height*0.45]}")
     pg.mouse.move(bx[0],bx[1]); pg.mouse.down(); pg.wait_for_timeout(120); pg.mouse.up(); pg.wait_for_timeout(900)
     print('スキル',c,'を戦場タップで発動: 撃破',k0,'→',pg.evaluate("NARAKU.B.kills"))
     if mode()=='levelup': pg.wait_for_timeout(600); pg.click('#lvCards .up:nth-child(1)'); pg.wait_for_timeout(300)
-    pg.click('#btnRewind'); pg.wait_for_timeout(2300)
-    print('逆転の右手の後: mode',mode(),'経過',round(pg.evaluate("NARAKU.B.t"),1),'秒 / 狂気',pg.evaluate("NARAKU.P.members.map(m=>m.madness)"))
+    assert not pg.locator('#btnRewind').is_visible()
+    pg.click('#btnPause')
+    pg.evaluate("NARAKU.B.slots[4].card=NARAKU.STRATEGIES.find(c=>c.effect==='heal')")
+    pg.wait_for_timeout(200)
+    xy=pg.evaluate("()=>{const r=document.querySelector('#hand [data-i=\"4\"]').getBoundingClientRect();return [r.x+35,r.y+35]}")
+    pg.click('#btnPause'); pg.mouse.click(*xy); pg.wait_for_timeout(200)
+    print('戦略カードをタップ: mode',mode(),'/ 手札',pg.evaluate('NARAKU.B.slots.length'))
     pg.screenshot(path=out)
     # 残り時間を飛ばして勝利させ、結果画面のボタンでマップへ戻る
     pg.evaluate("()=>{const B=NARAKU.B;B.enemies.length=0;B.allies[2].hp=B.allies[2].max*0.4;B.t=B.dur-0.2}"); pg.wait_for_timeout(900)

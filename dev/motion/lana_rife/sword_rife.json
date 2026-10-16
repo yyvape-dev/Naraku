@@ -1,0 +1,14 @@
+{
+  "cols": 6,
+  "cw": 443,
+  "ch": 292,
+  "ax": 221.5,
+  "ay": 287,
+  "refH": 189.0,
+  "rows": 4,
+  "frames": 24,
+  "originalFrames": 12,
+  "midpoints": 12,
+  "loopClosingMidpoint": true,
+  "target": "ally"
+}

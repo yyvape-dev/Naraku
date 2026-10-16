@@ -1,0 +1,126 @@
+{
+  "seconds": 35.476,
+  "pairs": [
+    {
+      "pair": [
+        1,
+        2
+      ],
+      "seconds": {
+        "color": 1.6,
+        "alpha": 1.459
+      }
+    },
+    {
+      "pair": [
+        2,
+        3
+      ],
+      "seconds": {
+        "color": 1.571,
+        "alpha": 1.417
+      }
+    },
+    {
+      "pair": [
+        3,
+        4
+      ],
+      "seconds": {
+        "color": 1.531,
+        "alpha": 1.464
+      }
+    },
+    {
+      "pair": [
+        4,
+        5
+      ],
+      "seconds": {
+        "color": 1.539,
+        "alpha": 1.45
+      }
+    },
+    {
+      "pair": [
+        5,
+        6
+      ],
+      "seconds": {
+        "color": 1.474,
+        "alpha": 1.398
+      }
+    },
+    {
+      "pair": [
+        6,
+        7
+      ],
+      "seconds": {
+        "color": 1.376,
+        "alpha": 1.396
+      }
+    },
+    {
+      "pair": [
+        7,
+        8
+      ],
+      "seconds": {
+        "color": 1.403,
+        "alpha": 1.405
+      }
+    },
+    {
+      "pair": [
+        8,
+        9
+      ],
+      "seconds": {
+        "color": 1.404,
+        "alpha": 1.357
+      }
+    },
+    {
+      "pair": [
+        9,
+        10
+      ],
+      "seconds": {
+        "color": 1.36,
+        "alpha": 1.368
+      }
+    },
+    {
+      "pair": [
+        10,
+        11
+      ],
+      "seconds": {
+        "color": 1.314,
+        "alpha": 1.356
+      }
+    },
+    {
+      "pair": [
+        11,
+        12
+      ],
+      "seconds": {
+        "color": 1.411,
+        "alpha": 1.573
+      }
+    },
+    {
+      "pair": [
+        12,
+        1
+      ],
+      "seconds": {
+        "color": 1.489,
+        "alpha": 1.435
+      }
+    }
+  ],
+  "source": "/workspace/Naraku-test/dev/assets/sword.webp"
+}

@@ -6,7 +6,7 @@
    NARAKU.start(ids,seed) は、Step 2までと同じ条件の単発180秒戦（探索とは別の検証用の入口）"""
 import sys, os, json
 from playwright.sync_api import sync_playwright
-html=os.path.abspath(sys.argv[1]); shot=sys.argv[2] if len(sys.argv)>2 else None; shot2=sys.argv[3] if len(sys.argv)>3 else None; shot3=sys.argv[4] if len(sys.argv)>4 else None; shot4=sys.argv[5] if len(sys.argv)>5 else None
+html=sys.argv[1] if sys.argv[1].startswith('http') else os.path.abspath(sys.argv[1]); shot=sys.argv[2] if len(sys.argv)>2 else None; shot2=sys.argv[3] if len(sys.argv)>3 else None; shot3=sys.argv[4] if len(sys.argv)>4 else None; shot4=sys.argv[5] if len(sys.argv)>5 else None
 # スキルを撃つ自動操縦と、強化の選び方3種（rnd=適当 / dps=火力優先 / none=何も取らない）
 LIB=r"""window.T={
   BOT:(B)=>{const al=B.allies.filter(a=>a.alive);
@@ -35,7 +35,7 @@ with sync_playwright() as p:
     b=p.chromium.launch(); pg=b.new_page(viewport={'width':390,'height':844},device_scale_factor=2)
     pg.on('console',lambda m: errs.append(m.text) if m.type=='error' else None)
     pg.on('pageerror',lambda e: errs.append('PAGEERR '+str(e)))
-    pg.goto('file://'+html); pg.wait_for_timeout(1500); pg.evaluate(LIB)
+    pg.goto(html if html.startswith('http') else 'file://'+html); pg.wait_for_timeout(1500); pg.evaluate(LIB)
     fake=pg.evaluate("[...Object.keys(NARAKU.SPR.ally).filter(k=>!NARAKU.SPR.ally[k].real),...Object.keys(NARAKU.SPR.enemy).filter(k=>!NARAKU.SPR.enemy[k].real)]")
     print('仮絵のまま:',fake or 'なし')
 
