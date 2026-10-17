@@ -1,0 +1,6 @@
+{"view":[-250,360,150],"look":[0,-20,110],"ortho":2.7,"res":512,
+ "frames":[
+  {"name":"1_kamae","grip":[0,-14,172],"dir":[0.15,0.55,0.82],"lean":6,"drop":10,"twist":-8,"rfoot":[-18,-34,8.5],"lfoot":[18,32,8.5],"toe_out":18},
+  {"name":"2_tame","grip":[4,10,156],"dir":[0.25,0.45,-0.86],"lean":-18,"drop":30,"twist":-22,"rfoot":[-40,20,8.5],"lfoot":[40,25,8.5],"toe_out":35},
+  {"name":"3_bakuhatsu","grip":[-10,-60,82],"dir":[-0.25,-0.85,-0.45],"lean":35,"drop":30,"twist":22,"elbow":"down","rfoot":[-18,-62,8.5],"lfoot":[15,50,12],"lheel":10,"toe_out":20}
+ ]}
